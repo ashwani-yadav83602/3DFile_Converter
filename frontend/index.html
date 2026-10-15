@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JT Viewer</title>
+  <script type="module"
+          src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #f4f4f4; }
+    .bar { padding: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    #status { color: #444; font-size: 14px; }
+    #status.error { color: #b91c1c; }
+    model-viewer { width: 100%; height: calc(100vh - 70px); display: none; background: #e9e9e9; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <label>
+      Please select a .jt file:
+      <input id="file" type="file" accept=".jt">
+    </label>
+    <span id="status"></span>
+  </div>
+
+  <model-viewer id="viewer" camera-controls auto-rotate shadow-intensity="1"
+                alt="Converted 3D model"></model-viewer>
+
+  <script>
+    // Address of the backend converter server
+    const API_BASE = 'http://127.0.0.1:5000';
+
+    const input = document.getElementById('file');
+    const status = document.getElementById('status');
+    const viewer = document.getElementById('viewer');
+
+    function setStatus(text, isError = false) {
+      status.textContent = text;
+      status.classList.toggle('error', isError);
+    }
+
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      if (!file) return;
+
+      if (!file.name.toLowerCase().endsWith('.jt')) {
+        setStatus('Please choose a .jt file.', true);
+        input.value = '';
+        return;
+      }
+
+      setStatus('Uploading and converting... this can take a while for large files.');
+      viewer.style.display = 'none';
+
+      const form = new FormData();
+      form.append('file', file);
+
+      try {
+        const res = await fetch(`${API_BASE}/upload`, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Conversion failed.');
+
+        viewer.src = new URL(data.url, API_BASE).href;
+        viewer.style.display = 'block';
+        setStatus('Done. Drag to rotate, scroll to zoom.');
+      } catch (err) {
+        if (err instanceof TypeError) {
+          setStatus(`Cannot reach the backend at ${API_BASE}. Is it running?`, true);
+        } else {
+          setStatus(err.message, true);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
