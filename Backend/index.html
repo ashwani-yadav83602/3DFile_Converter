@@ -11,6 +11,8 @@
     .bar { padding: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     #status { color: #444; font-size: 14px; }
     #status.error { color: #b91c1c; }
+    #addBtn { display: none; padding: 6px 16px; cursor: pointer; }
+    #addBtn:disabled { opacity: .6; cursor: wait; }
     model-viewer { width: 50%; height: calc(100vh - 70px); display: none; background: black; }
   </style>
 </head>
@@ -20,6 +22,7 @@
       Please select a .jt file:
       <input id="file" type="file" accept=".jt">
     </label>
+    <button id="addBtn" type="button">Add</button>
     <span id="status"></span>
   </div>
 
@@ -31,6 +34,7 @@
     const API_BASE = 'http://127.0.0.1:5000';
 
     const input = document.getElementById('file');
+    const addBtn = document.getElementById('addBtn');
     const status = document.getElementById('status');
     const viewer = document.getElementById('viewer');
 
@@ -41,6 +45,7 @@
 
     input.addEventListener('change', async () => {
       const file = input.files[0];
+      addBtn.style.display = 'none';
       if (!file) return;
 
       if (!file.name.toLowerCase().endsWith('.jt')) {
@@ -48,6 +53,9 @@
         input.value = '';
         return;
       }
+
+      // File is valid: show the Add button right away
+      addBtn.style.display = 'inline-block';
 
       setStatus('Uploading and converting... this can take a while for large files.');
       viewer.style.display = 'none';
@@ -69,6 +77,32 @@
         } else {
           setStatus(err.message, true);
         }
+      }
+    });
+
+    // Add button: send the chosen file to the backend, which opens it in JT2Go
+    addBtn.addEventListener('click', async () => {
+      const file = input.files[0];
+      if (!file) return;
+
+      const form = new FormData();
+      form.append('file', file);
+
+      addBtn.disabled = true;
+      setStatus('Opening in JT2Go...');
+      try {
+        const res = await fetch(`${API_BASE}/add-to-jt2go`, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not add the file.');
+        setStatus('Opened in JT2Go.');
+      } catch (err) {
+        if (err instanceof TypeError) {
+          setStatus(`Cannot reach the backend at ${API_BASE}. Is it running?`, true);
+        } else {
+          setStatus(err.message, true);
+        }
+      } finally {
+        addBtn.disabled = false;
       }
     });
   </script>
