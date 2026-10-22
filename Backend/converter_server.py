@@ -23,6 +23,8 @@ import os
 import re
 import shutil
 import struct
+import threading
+import time
 import uuid
 import zipfile
 import zlib
@@ -32,14 +34,19 @@ from pathlib import Path
 
 
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
+try:
+    from .config import BACKEND_DIR, CONVERTED_DIR, MAX_CONTENT_LENGTH, UPLOADS_DIR
+except ImportError:
+    from config import BACKEND_DIR, CONVERTED_DIR, MAX_CONTENT_LENGTH, UPLOADS_DIR
 
-JT2GO_EXE = os.environ.get("JT2GO_EXE")
+JT2GO_LOCK = threading.Lock()
 
-BASE = Path(__file__).parent
-UPLOADS = BASE / "uploads"
-CONVERTED = BASE / "converted"
+BASE = BACKEND_DIR
+UPLOADS = UPLOADS_DIR
+CONVERTED = CONVERTED_DIR
 UPLOADS.mkdir(exist_ok=True)
 CONVERTED.mkdir(exist_ok=True)
 
@@ -54,7 +61,18 @@ MIMETYPES = {
 CONVERTER_VERSION = "aspose-pbr-v1"
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200 MB upload limit
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
+
+
+@app.errorhandler(HTTPException)
+def handle_http_error(error):
+    return jsonify(error=error.description), error.code
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    app.logger.exception("Unhandled request error")
+    return jsonify(error=f"{type(error).__name__}: {error}"), 500
 
 
 @app.after_request
@@ -331,51 +349,6 @@ def check_upload():
     return file, None
 
 
-def find_jt2go_executable():
-    """Find JT2Go without relying on the potentially incorrect .jt file association."""
-    candidates = [JT2GO_EXE] if JT2GO_EXE else []
-    for program_files in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
-        if program_files:
-            candidates.append(str(Path(program_files) / "Siemens" / "JT2Go" / "JT2Go.exe"))
-
-    for candidate in candidates:
-        if candidate and Path(candidate).is_file():
-            return str(Path(candidate))
-
-    if os.name == "nt":
-        import winreg
-
-        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-            try:
-                with winreg.OpenKey(
-                    hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\JT2Go.exe"
-                ) as key:
-                    executable, _ = winreg.QueryValueEx(key, None)
-                if executable and Path(executable).is_file():
-                    return executable
-            except OSError:
-                pass
-
-        try:
-            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, ".jt") as key:
-                prog_id, _ = winreg.QueryValueEx(key, None)
-            with winreg.OpenKey(
-                winreg.HKEY_CLASSES_ROOT, prog_id + r"\shell\open\command"
-            ) as key:
-                command, _ = winreg.QueryValueEx(key, None)
-            match = re.match(r'^\s*(?:"([^"]+)"|([^\s]+))', command)
-            executable = (match.group(1) or match.group(2)) if match else ""
-            if (
-                Path(executable).name.lower().startswith("jt2go")
-                and Path(executable).is_file()
-            ):
-                return executable
-        except OSError:
-            pass
-
-    return None
-
-
 def find_jt2go_app_id():
     """Find the AppUserModelID for a packaged JT2Go installation."""
     if os.name != "nt":
@@ -432,7 +405,8 @@ def activate_packaged_jt2go(app_id, file_path):
     ole32.CoUninitialize.restype = None
 
     initialized = ole32.CoInitializeEx(None, 2)  # COINIT_APARTMENTTHREADED
-    if initialized < 0:
+    owns_com_initialization = initialized >= 0
+    if initialized < 0 and initialized & 0xFFFFFFFF != 0x80010106:  # RPC_E_CHANGED_MODE
         raise OSError(f"Could not initialize Windows app activation (HRESULT 0x{initialized & 0xFFFFFFFF:08X}).")
 
     instance = ctypes.c_void_p()
@@ -472,7 +446,205 @@ def activate_packaged_jt2go(app_id, file_path):
         if instance:
             release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
             release(instance)
-        ole32.CoUninitialize()
+        if owns_com_initialization:
+            ole32.CoUninitialize()
+
+
+def _process_image_path(process_id):
+    """Return the executable path for a Windows process, or None if it is inaccessible."""
+    if os.name != "nt":
+        return None
+
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.QueryFullProcessImageNameW.argtypes = (
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        wintypes.LPWSTR,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    process = kernel32.OpenProcess(0x1000, False, process_id)
+    if not process:
+        return None
+    try:
+        image_path = ctypes.create_unicode_buffer(32768)
+        size = wintypes.DWORD(len(image_path))
+        if kernel32.QueryFullProcessImageNameW(process, 0, image_path, ctypes.byref(size)):
+            return image_path.value
+        return None
+    finally:
+        kernel32.CloseHandle(process)
+
+
+def find_jt2go_window():
+    """Return JT2Go's main UIA window when the application is already open."""
+    if os.name != "nt":
+        return None
+
+    from pywinauto import Desktop
+
+    desktop = Desktop(backend="uia")
+    process_paths = {}
+    candidates = []
+    for window in desktop.windows():
+        if window.element_info.class_name == "#32770":
+            continue
+        process_id = window.process_id()
+        if process_id not in process_paths:
+            process_paths[process_id] = _process_image_path(process_id)
+        image_path = process_paths[process_id]
+        if image_path and "jt2go" in image_path.lower():
+            candidates.append(window)
+
+    selected = next(
+        (window for window in candidates if "jt2go" in window.window_text().lower()),
+        candidates[0] if candidates else None,
+    )
+    return desktop.window(handle=selected.handle) if selected else None
+
+
+def _active_popup(main_window):
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.GetWindow.argtypes = (wintypes.HWND, wintypes.UINT)
+    user32.GetWindow.restype = wintypes.HWND
+    handle = user32.GetWindow(main_window.handle, 6)  # GW_ENABLEDPOPUP
+    if not handle or handle == main_window.handle:
+        return None
+
+    user32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+    user32.GetWindowThreadProcessId.argtypes = (
+        wintypes.HWND,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    title = ctypes.create_unicode_buffer(512)
+    process_id = wintypes.DWORD()
+    user32.GetWindowTextW(handle, title, len(title))
+    user32.GetWindowThreadProcessId(handle, ctypes.byref(process_id))
+    return handle, process_id.value, title.value
+
+
+def _wait_for_open_dialog(main_window, timeout=15):
+    """Wait for JT2Go's modal Open dialog, including owned popup windows."""
+    import ctypes
+    from ctypes import wintypes
+    from pywinauto import Desktop
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.IsWindow.argtypes = (wintypes.HWND,)
+    user32.IsWindow.restype = wintypes.BOOL
+    user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    desktop = Desktop(backend="uia")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        popup = _active_popup(main_window)
+        if (
+            popup
+            and popup[1] == main_window.process_id()
+            and popup[2].strip().lower() == "open"
+            and user32.IsWindow(popup[0])
+            and user32.IsWindowVisible(popup[0])
+        ):
+            return desktop.window(handle=popup[0])
+
+        for window in desktop.windows():
+            if (
+                window.process_id() == main_window.process_id()
+                and window.element_info.class_name == "#32770"
+                and window.window_text().strip().lower() == "open"
+                and window.is_visible()
+            ):
+                return window
+        time.sleep(0.2)
+    raise TimeoutError("JT2Go's Open file dialog did not appear.")
+
+
+def _model_document_windows(main_window):
+    return {
+        child.handle: child.window_text()
+        for child in main_window.descendants(control_type="Window")
+        if child.window_text().strip().lower().endswith(".jt")
+    }
+
+
+def _wait_for_new_model_tab(main_window, file_path, existing_handles, timeout=60):
+    from comtypes import COMError
+
+    expected_title = Path(file_path).name.casefold()
+    deadline = time.monotonic() + timeout
+    last_uia_error = None
+    while time.monotonic() < deadline:
+        try:
+            tabs = _model_document_windows(main_window)
+            for handle, title in tabs.items():
+                if handle not in existing_handles and title.strip().casefold() == expected_title:
+                    return
+            last_uia_error = None
+        except COMError as error:
+            last_uia_error = error
+        time.sleep(0.2)
+
+    if last_uia_error:
+        raise TimeoutError(
+            f"JT2Go did not expose the new document tab to UI Automation: {last_uia_error}"
+        ) from last_uia_error
+    raise TimeoutError(f"JT2Go did not open {Path(file_path).name!r} in a new document tab.")
+
+
+def add_file_to_jt2go_window(window, file_path):
+    """Open a model in a new JT2Go document tab."""
+    from pywinauto import Desktop
+
+    if window.is_minimized():
+        window.restore()
+    window.set_focus()
+    existing_tabs = _model_document_windows(window)
+
+    application_menu = window.child_window(
+        title="Application menu", control_type="Button"
+    )
+    if application_menu.exists(timeout=1):
+        application_menu.invoke()
+        open_item = window.child_window(
+            title_re=r"Open\.\.\..*", control_type="MenuItem", found_index=0
+        )
+        open_item.wait("visible", timeout=5)
+        open_item.click_input()
+    else:
+        window.menu_select("File->Open...")
+
+    dialog = _wait_for_open_dialog(window)
+    filename = dialog.child_window(auto_id="3078", control_type="Edit")
+    if not filename.exists(timeout=1):
+        edits = dialog.descendants(control_type="Edit")
+        filename = edits[0] if edits else None
+    if filename is None:
+        raise RuntimeError("Could not find the filename field in JT2Go's Open dialog.")
+
+    filename.set_edit_text("")
+    filename.click_input()
+    filename.type_keys(str(file_path), with_spaces=True)
+    if os.path.normcase(os.path.normpath(filename.get_value())) != os.path.normcase(
+        os.path.normpath(str(file_path))
+    ):
+        raise RuntimeError("JT2Go's Open dialog did not accept the complete file path.")
+    open_button = dialog.child_window(auto_id="1", control_type="Button")
+    if not open_button.exists(timeout=1):
+        raise RuntimeError("Could not find the Open button in JT2Go's file dialog.")
+    open_button.wait("enabled", timeout=5)
+    open_button.click_input()
+    _wait_for_new_model_tab(window, file_path, set(existing_tabs))
 
 
 def file_digest(file) -> str:
@@ -627,37 +799,34 @@ def add_to_jt2go():
     file, bad = check_upload()
     if bad:
         return bad
-    try:
-        executable = find_jt2go_executable()
-        app_id = None if executable else find_jt2go_app_id()
-    except Exception as e:
-        app.logger.exception("Could not find JT2Go")
-        return jsonify(error=f"Could not find JT2Go: {type(e).__name__}: {e}"), 500
-
-    if not executable and not app_id:
-        return jsonify(
-            error=(
-                "JT2Go was not found. Install Siemens JT2Go or set "
-                "JT2GO_EXE to the full path of JT2Go.exe."
-            )
-        ), 503
-
-    try:
+    with JT2GO_LOCK:
         folder = UPLOADS / "jt2go" / uuid.uuid4().hex
         folder.mkdir(parents=True)
         dst = folder / secure_filename(file.filename)
         file.save(dst)
-        if executable:
-            subprocess.Popen([executable, str(dst)], cwd=str(Path(executable).parent))
-        else:
+
+        try:
+            window = find_jt2go_window()
+            if window:
+                add_file_to_jt2go_window(window, dst)
+                return jsonify(ok=True, path=str(dst), new_tab=True)
+
+            app_id = find_jt2go_app_id()
+            if not app_id:
+                return jsonify(error="JT2Go was not found."), 503
             activate_packaged_jt2go(app_id, dst)
-    except Exception as e:
-        app.logger.exception("Add to JT2Go failed")
-        return jsonify(error=f"Could not start JT2Go: {type(e).__name__}: {e}"), 500
-    return jsonify(ok=True, path=str(dst))
+            return jsonify(ok=True, path=str(dst), new_tab=True)
+        except Exception as e:
+            app.logger.exception("Add to JT2Go failed")
+            return jsonify(error=f"Could not add file to JT2Go: {type(e).__name__}: {e}"), 500
 @app.route("/models/<name>")
 def models(name):
-    return send_from_directory(CONVERTED, name, mimetype=MIMETYPES["glb"])
+    return send_from_directory(
+        CONVERTED,
+        name,
+        mimetype=MIMETYPES["glb"],
+        as_attachment=request.args.get("download") == "1",
+    )
 
 
 @app.route("/")
@@ -666,4 +835,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False, threaded=True)

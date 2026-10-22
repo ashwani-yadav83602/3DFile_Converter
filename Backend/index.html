@@ -13,6 +13,7 @@
     #status.error { color: #b91c1c; }
     #addBtn { display: none; padding: 6px 16px; cursor: pointer; }
     #addBtn:disabled { opacity: .6; cursor: wait; }
+    #downloadBtn { display: none; padding: 6px 16px; }
     model-viewer { width: 50%; height: calc(100vh - 70px); display: none; background: black; }
   </style>
 </head>
@@ -23,6 +24,7 @@
       <input id="file" type="file" accept=".jt">
     </label>
     <button id="addBtn" type="button">Add</button>
+    <a id="downloadBtn" href="#" download>Download .jt file</a>
     <span id="status"></span>
   </div>
 
@@ -35,8 +37,10 @@
 
     const input = document.getElementById('file');
     const addBtn = document.getElementById('addBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
     const status = document.getElementById('status');
     const viewer = document.getElementById('viewer');
+    let downloadUrl = null;
 
     function setStatus(text, isError = false) {
       status.textContent = text;
@@ -46,6 +50,11 @@
     input.addEventListener('change', async () => {
       const file = input.files[0];
       addBtn.style.display = 'none';
+      downloadBtn.style.display = 'none';
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+        downloadUrl = null;
+      }
       if (!file) return;
 
       if (!file.name.toLowerCase().endsWith('.jt')) {
@@ -56,6 +65,10 @@
 
       // File is valid: show the Add button right away
       addBtn.style.display = 'inline-block';
+      downloadUrl = URL.createObjectURL(file);
+      downloadBtn.href = downloadUrl;
+      downloadBtn.download = file.name;
+      downloadBtn.style.display = 'inline-block';
 
       setStatus('Uploading and converting... this can take a while for large files.');
       viewer.style.display = 'none';
@@ -68,7 +81,8 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Conversion failed.');
 
-        viewer.src = new URL(data.url, API_BASE).href;
+        const modelUrl = new URL(data.url, API_BASE);
+        viewer.src = modelUrl.href;
         viewer.style.display = 'block';
         setStatus('Done. Drag to rotate, scroll to zoom.');
       } catch (err) {
@@ -80,7 +94,7 @@
       }
     });
 
-    // Add button: send the chosen file to the backend, which opens it in JT2Go
+    // Add button: send the chosen file to the backend, which opens a new JT2Go tab
     addBtn.addEventListener('click', async () => {
       const file = input.files[0];
       if (!file) return;
@@ -89,12 +103,12 @@
       form.append('file', file);
 
       addBtn.disabled = true;
-      setStatus('Opening in JT2Go...');
+      setStatus('Opening a new JT2Go tab...');
       try {
         const res = await fetch(`${API_BASE}/add-to-jt2go`, { method: 'POST', body: form });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not add the file.');
-        setStatus('Opened in JT2Go.');
+        setStatus('Opened in a new JT2Go tab.');
       } catch (err) {
         if (err instanceof TypeError) {
           setStatus(`Cannot reach the backend at ${API_BASE}. Is it running?`, true);
