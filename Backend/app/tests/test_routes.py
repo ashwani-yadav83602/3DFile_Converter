@@ -1,16 +1,29 @@
 from io import BytesIO
+import shutil
 import unittest
+from pathlib import Path
 from uuid import uuid4
 
-try:
-    from Backend.converter_server import CONVERTED, app
-except ModuleNotFoundError:
-    from converter_server import CONVERTED, app
+from app import create_app
 
 
 class RouteTests(unittest.TestCase):
     def setUp(self):
-        self.client = app.test_client()
+        self.temp_dir = Path(__file__).parent / "temp" / uuid4().hex
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "UPLOADS_DIR": self.temp_dir / "uploads",
+                "CONVERTED_DIR": self.temp_dir / "converted",
+            }
+        )
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_factory_registers_blueprints(self):
+        self.assertEqual(set(self.app.blueprints), {"main", "conversion", "jt2go"})
 
     def test_homepage_serves_frontend(self):
         response = self.client.get("/")
@@ -32,7 +45,7 @@ class RouteTests(unittest.TestCase):
 
     def test_model_download_is_an_attachment(self):
         name = f"test-{uuid4().hex}.glb"
-        model = CONVERTED / name
+        model = self.temp_dir / "converted" / name
         model.write_bytes(b"test model")
         self.addCleanup(model.unlink, missing_ok=True)
 
