@@ -1,0 +1,18 @@
+# Python environments and bytecode
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Generated models and uploaded source files
+Backend/app/uploads/
+Backend/app/converted/
+Backend/uploads/
+Backend/converted/
+Backend/ServerUploads/
+/config/.env.*
+
+# Test and tooling caches
+.pytest_cache/
+.coverage
+htmlcov/

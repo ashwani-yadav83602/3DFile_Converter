@@ -1,3 +1,6 @@
 flask
 aspose-3d
 pywinauto
+waitress
+mysql-connector-python
+python-dotenv
