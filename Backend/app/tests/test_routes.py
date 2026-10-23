@@ -3,6 +3,7 @@ import shutil
 import unittest
 from pathlib import Path
 from uuid import uuid4
+from unittest.mock import patch
 
 from app import create_app
 
@@ -15,6 +16,7 @@ class RouteTests(unittest.TestCase):
                 "TESTING": True,
                 "UPLOADS_DIR": self.temp_dir / "uploads",
                 "CONVERTED_DIR": self.temp_dir / "converted",
+                "SERVER_UPLOADS_DIR": self.temp_dir / "server_uploads",
             }
         )
         self.client = self.app.test_client()
@@ -23,14 +25,23 @@ class RouteTests(unittest.TestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_factory_registers_blueprints(self):
-        self.assertEqual(set(self.app.blueprints), {"main", "conversion", "jt2go"})
+        self.assertEqual(
+            set(self.app.blueprints),
+            {"main", "conversion", "jt2go", "jt_files", "jt_file_list"},
+        )
 
     def test_homepage_serves_frontend(self):
         response = self.client.get("/")
+        page = response.data
+        response.close()
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Please select a .jt file", response.data)
-        response.close()
+        self.assertIn(b"Model preview", page)
+        self.assertIn(b"Download original .jt", page)
+        self.assertIn(b"Upload to server", page)
+        self.assertIn(b'id="fileSearch"', page)
+        self.assertIn(b"Uploaded JT files", page)
+        self.assertIn(b"id=\"refreshFilesBtn\"", page)
 
     def test_invalid_upload_returns_json(self):
         response = self.client.post(
@@ -53,4 +64,25 @@ class RouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.headers["Content-Disposition"].startswith("attachment;"))
+        response.close()
+
+    def test_existing_preview_upload_route_keeps_its_response_shape(self):
+        def create_glb(source, destination):
+            destination.write_bytes(b"mock GLB")
+
+        with (
+            patch("app.routes.conversion.file_digest", return_value="a" * 64),
+            patch("app.routes.conversion.convert_jt", side_effect=create_glb),
+        ):
+            response = self.client.post(
+                "/upload",
+                data={"file": (BytesIO(b"valid JT test bytes"), "model.jt")},
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json,
+            {"url": f"/models/{'a' * 64}.glb", "cached": False},
+        )
         response.close()
