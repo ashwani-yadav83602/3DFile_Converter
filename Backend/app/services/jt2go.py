@@ -389,7 +389,11 @@ def _force_window_to_foreground(window, timeout=5):
     user32.SetFocus.restype = wintypes.HWND
 
     desktop = Desktop(backend="uia")
-    pid = window.process_id()
+    try:
+        pid = window.process_id()
+        window_handle = window.handle
+    except Exception:
+        return False
     deadline = time.monotonic() + timeout
 
     while time.monotonic() < deadline:
@@ -643,14 +647,16 @@ def add_file_to_jt2go_window(window, file_path):
     # Reactivate JT2Go after the model finishes loading.
     time.sleep(0.5)
     try:
-        window.restore()
-    except Exception:
-        pass
-
-    if not _force_window_to_foreground(window, timeout=3):
-        time.sleep(0.5)
-        if not _force_window_to_foreground(window, timeout=3):
-            print(
-                "Warning: JT2Go opened the model, but Windows did not "
-                "allow its main window to become the foreground window."
-            )
+        fresh = find_jt2go_window()  # look the window up again; its title changed
+        if fresh is not None:
+            try:
+                fresh.restore()
+            except Exception:
+                pass
+            if not _force_window_to_foreground(fresh, timeout=3):
+                print(
+                    "Warning: JT2Go opened the model, but Windows did not "
+                    "allow its main window to become the foreground window."
+                )
+    except Exception as error:
+        print(f"Could not bring JT2Go to the foreground (file is open): {error}")
