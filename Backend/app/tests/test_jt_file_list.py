@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from app import create_app
+from app.services.jt_file_uploads import get_local_jt_file_path
 
 
 class JTFileListTests(unittest.TestCase):
@@ -95,3 +96,23 @@ class JTFileListTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("MySQL", response.json["error"])
         response.close()
+
+    def test_my_files_path_lookup_is_limited_to_local_owner(self):
+        cursor = Mock()
+        cursor.fetchone.return_value = {"file_location": "C:/ServerUploads/model.jt"}
+        connection = Mock()
+        connection.cursor.return_value = cursor
+
+        with patch(
+            "app.services.jt_file_uploads._connect_to_database",
+            return_value=connection,
+        ):
+            with self.app.app_context():
+                path = get_local_jt_file_path(12)
+
+        self.assertEqual(path, "C:/ServerUploads/model.jt")
+        query, params = cursor.execute.call_args.args
+        self.assertIn("`attribute_owner` = %s", query)
+        self.assertEqual(params, (12, "local-user"))
+        cursor.close.assert_called_once_with()
+        connection.close.assert_called_once_with()

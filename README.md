@@ -117,12 +117,19 @@ cannot reliably control the JT2Go window.
 ## Use the web application
 
 1. Start the server and open the local URL.
-2. Choose a `.jt` file. The app uploads it and converts it to GLB for preview.
-3. Use the 3D preview to inspect the converted model.
-4. Select **Upload to server** to save the original JT file and register its
+2. Use the sidebar's **All Files** and **My Files** sections to browse database
+   records. Since authentication is not enabled, **My Files** currently means
+   files owned by the placeholder `local-user`.
+3. Choose **Upload File** to open the JT upload and preview workspace.
+4. Choose a `.jt` file. The app uploads it and converts it to GLB for preview.
+5. Use the 3D preview to inspect the converted model.
+6. Select **Upload to server** to save the original JT file and register its
    metadata in MySQL. Success is reported separately from preview conversion.
-5. Select **Download original .jt** to save the source file.
-6. Select **Add to JT2Go** to open the source model in JT2Go.
+7. In **My Files**, select **JT2Go** in the row action column to open a saved
+   server upload in JT2Go.
+8. Select **Download original .jt** to save the source file.
+9. Select **Add to JT2Go** in the upload workspace to open the currently
+   selected source model in JT2Go.
 
 The server accepts JT uploads up to 200 MB. Material colors in the preview
 depend on the data Aspose.3D can read from the source JT file.
@@ -203,7 +210,11 @@ source control. Registered JT uploads are stored separately in
 │       ├── routes/           # Web, conversion, and JT2Go endpoints
 │       ├── services/         # Conversion, JT inspection, and JT2Go automation
 │       ├── utils/            # Upload validation and error handlers
-│       ├── static/           # Browser frontend
+│       ├── static/
+│       │   ├── index.html    # Small frontend shell
+│       │   ├── css/          # Variables, base, layout, components, pages, responsive
+│       │   ├── pages/        # Upload and file-list HTML templates
+│       │   └── js/           # App entry, navigation, page modules, shared utilities
 │       └── tests/            # Backend route tests
 ├── requirements.txt
 └── start_server.bat

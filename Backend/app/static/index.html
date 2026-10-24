@@ -5,134 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1020">
   <title>JT Studio</title>
-  <script type="module"
-          src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-  <style>
-    :root {
-      color-scheme: dark;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0b1020;
-      color: #edf2ff;
-      font-synthesis: none;
-      text-rendering: optimizeLegibility;
-      --muted: #8e9ab8;
-      --line: rgba(157, 173, 210, .14);
-      --accent: #8b7bff;
-      --accent-bright: #a79cff;
-    }
-    * { box-sizing: border-box; }
-    body { min-width: 320px; min-height: 100vh; margin: 0; background: radial-gradient(ellipse at 15% 0%, #182143 0, #0b1020 48rem); }
-    button, input { font: inherit; }
-    .app-shell { min-height: 100vh; padding: 0 32px 32px; }
-    .topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
-    .brand { display: inline-flex; align-items: center; gap: 11px; color: #f4f6ff; font-size: 17px; font-weight: 700; letter-spacing: -.035em; }
-    .brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(167, 156, 255, .32); border-radius: 11px; background: linear-gradient(145deg, rgba(139, 123, 255, .25), rgba(61, 75, 138, .2)); color: var(--accent-bright); }
-    .topbar-note { color: var(--muted); font-size: 12px; letter-spacing: .02em; }
-    .workspace { display: grid; grid-template-columns: minmax(0, 7fr) minmax(290px, 3fr); gap: 24px; min-height: calc(100vh - 109px); padding-top: 24px; }
-    .preview-panel, .control-panel { border: 1px solid var(--line); border-radius: 20px; background: rgba(15, 22, 41, .82); box-shadow: 0 22px 70px rgba(0, 0, 0, .2); }
-    .preview-panel { position: relative; display: flex; min-height: 650px; flex-direction: column; overflow: hidden; }
-    .panel-heading { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 22px; border-bottom: 1px solid var(--line); }
-    .panel-heading h1 { margin: 0; color: #e7ebfa; font-size: 13px; font-weight: 650; letter-spacing: .02em; }
-    .preview-badge { display: inline-flex; align-items: center; gap: 7px; color: #a9b3cc; font-size: 11px; }
-    .preview-badge::before { width: 7px; height: 7px; border-radius: 50%; background: #626e8d; content: ""; }
-    .preview-badge.ready::before { background: #5ee0b2; box-shadow: 0 0 12px rgba(94, 224, 178, .65); }
-    .preview-stage { position: relative; display: grid; min-height: 0; flex: 1; place-items: center; overflow: hidden; background-image: linear-gradient(rgba(137, 154, 196, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(137, 154, 196, .035) 1px, transparent 1px), radial-gradient(ellipse at center, rgba(55, 67, 115, .2), transparent 67%); background-size: 42px 42px, 42px 42px, auto; }
-    .preview-stage.has-model { background-image: radial-gradient(ellipse at center, rgba(55, 67, 115, .25), transparent 68%); }
-    model-viewer { display: none; width: 100%; height: 100%; min-height: 550px; background: transparent; --poster-color: transparent; }
-    .preview-stage.has-model model-viewer { display: block; }
-    .preview-stage.has-model .empty-state { display: none; }
-    .empty-state { display: grid; justify-items: center; padding: 36px; text-align: center; }
-    .empty-icon { display: grid; width: 76px; height: 76px; place-items: center; margin-bottom: 23px; border: 1px solid rgba(147, 161, 207, .18); border-radius: 24px; background: linear-gradient(145deg, rgba(139, 123, 255, .13), rgba(72, 91, 145, .07)); color: #a89dff; }
-    .empty-state h2 { margin: 0 0 9px; color: #e6eafe; font-size: 18px; font-weight: 620; letter-spacing: -.025em; }
-    .empty-state p { max-width: 300px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
-    .control-panel { align-self: start; padding: 25px 22px 20px; }
-    .eyebrow { margin: 0 0 9px; color: var(--accent-bright); font-size: 10px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
-    .control-panel h2 { margin: 0; color: #f0f2ff; font-size: 20px; font-weight: 660; letter-spacing: -.045em; }
-    .panel-copy { margin: 9px 0 25px; color: var(--muted); font-size: 12px; line-height: 1.65; }
-    .field-label { display: block; margin-bottom: 9px; color: #c5cce0; font-size: 11px; font-weight: 650; }
-    .file-picker { position: relative; display: flex; min-height: 112px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 15px; border: 1px dashed rgba(155, 168, 205, .3); border-radius: 13px; background: rgba(9, 14, 29, .55); color: #c6cde0; cursor: pointer; text-align: center; transition: border-color .18s ease, background .18s ease; }
-    .file-picker:hover { border-color: rgba(167, 156, 255, .7); background: rgba(139, 123, 255, .07); }
-    .file-picker svg { color: #a89dff; }
-    .file-picker strong { font-size: 12px; font-weight: 620; }
-    .file-picker small { color: var(--muted); font-size: 10px; }
-    #file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
-    #file:focus-visible + .file-picker { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
-    #selectedFile { display: none; overflow: hidden; margin-top: 10px; color: #b8c1da; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-    .actions { display: grid; gap: 10px; margin-top: 20px; }
-    .action-button { display: flex; min-height: 44px; align-items: center; justify-content: center; gap: 9px; border: 1px solid transparent; border-radius: 11px; font-size: 12px; font-weight: 680; text-decoration: none; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
-    .action-button:hover { transform: translateY(-1px); }
-    .action-button:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
-    #addBtn { display: none; background: linear-gradient(100deg, #8874ff, #6c77f5); box-shadow: 0 8px 22px rgba(105, 91, 231, .2); color: white; cursor: pointer; }
-    #addBtn:hover { background: linear-gradient(100deg, #9786ff, #7d87ff); }
-    #addBtn:disabled { cursor: wait; opacity: .58; transform: none; }
-    #registerBtn { display: none; border-color: rgba(94, 224, 178, .26); background: rgba(94, 224, 178, .08); color: #aaf0d6; cursor: pointer; }
-    #registerBtn:hover { border-color: rgba(94, 224, 178, .52); background: rgba(94, 224, 178, .13); }
-    #registerBtn:disabled { cursor: wait; opacity: .58; transform: none; }
-    #downloadBtn { display: none; border-color: var(--line); background: rgba(255, 255, 255, .035); color: #d8def2; cursor: pointer; }
-    #downloadBtn:hover { border-color: rgba(167, 156, 255, .42); background: rgba(139, 123, 255, .08); }
-    .divider { height: 1px; margin: 22px 0 16px; background: var(--line); }
-    #status { min-height: 34px; margin: 0; color: #a5b0ca; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
-    #registrationStatus { min-height: 0; margin: 8px 0 0; color: #aaf0d6; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
-    #status.error, #registrationStatus.error { color: #ff8e9b; }
-    .tip { display: flex; gap: 9px; margin-top: 13px; padding: 11px; border: 1px solid rgba(125, 144, 194, .12); border-radius: 10px; background: rgba(255, 255, 255, .025); color: #8996b5; font-size: 10px; line-height: 1.55; }
-    .tip svg { flex: 0 0 auto; color: #a89dff; }
-    .uploads-panel { margin-top: 22px; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(19, 27, 50, .96), rgba(12, 18, 34, .94)); box-shadow: 0 22px 70px rgba(0, 0, 0, .16); }
-    .uploads-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 19px; }
-    .uploads-title-group { display: flex; align-items: center; gap: 12px; }
-    .uploads-icon { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid rgba(139, 123, 255, .24); border-radius: 12px; background: rgba(139, 123, 255, .1); color: var(--accent-bright); }
-    .uploads-heading h2 { margin: 0; color: #f0f2ff; font-size: 16px; letter-spacing: -.02em; }
-    .uploads-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
-    .uploads-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .search-box { position: relative; display: flex; min-width: 220px; max-width: 430px; height: 40px; flex: 1; align-items: center; }
-    .search-box svg { position: absolute; left: 12px; color: #8e9ab8; pointer-events: none; }
-    #fileSearch { width: 100%; height: 100%; padding: 0 13px 0 38px; border: 1px solid var(--line); border-radius: 10px; outline: none; background: rgba(7, 12, 25, .55); color: #edf2ff; font: inherit; font-size: 12px; transition: border-color .16s ease, box-shadow .16s ease; }
-    #fileSearch::placeholder { color: #74809d; }
-    #fileSearch:focus { border-color: rgba(167, 156, 255, .65); box-shadow: 0 0 0 3px rgba(139, 123, 255, .1); }
-    #refreshFilesBtn { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .035); color: #d8def2; cursor: pointer; font-size: 11px; font-weight: 600; transition: border-color .16s ease, background .16s ease; }
-    #refreshFilesBtn:hover { border-color: rgba(167, 156, 255, .42); background: rgba(139, 123, 255, .08); }
-    #refreshFilesBtn:disabled { cursor: wait; opacity: .6; }
-    .file-list-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: rgba(5, 10, 22, .3); }
-    #uploadedFilesTable { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 12px; }
-    #uploadedFilesTable th, #uploadedFilesTable td { padding: 12px 15px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-    #uploadedFilesTable th { position: sticky; top: 0; background: rgba(21, 29, 52, .98); color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .075em; }
-    #uploadedFilesTable td { color: #d6ddef; }
-    #uploadedFilesTable tbody tr:last-child td { border-bottom: 0; }
-    #uploadedFilesTable tbody tr:hover { background: rgba(139, 123, 255, .055); }
-    .file-id { color: #8996b5 !important; font-variant-numeric: tabular-nums; }
-    .file-name-cell { max-width: 420px; overflow: hidden; font-weight: 600; text-overflow: ellipsis; }
-    .file-path-cell { max-width: 480px; overflow: hidden; color: #9ca9c6 !important; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; text-overflow: ellipsis; }
-    .file-type-badge { display: inline-flex; align-items: center; padding: 4px 7px; border: 1px solid rgba(139, 123, 255, .2); border-radius: 6px; background: rgba(139, 123, 255, .08); color: #b9b0ff; font-size: 10px; font-weight: 700; }
-    .file-size-cell { font-variant-numeric: tabular-nums; }
-    .file-owner-cell { color: #aab6d2 !important; }
-    #fileListStatus { min-height: 18px; margin: 0 0 10px; color: var(--muted); font-size: 11px; }
-    #fileListStatus.error { color: #ff8e9b; }
-    @media (max-width: 900px) {
-      .app-shell { padding: 0 20px 20px; }
-      .workspace { grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
-      .preview-panel { min-height: 570px; }
-      model-viewer { min-height: 470px; }
-    }
-    @media (max-width: 680px) {
-      .app-shell { padding: 0 14px 16px; }
-      .topbar { height: 64px; }
-      .topbar-note { font-size: 10px; }
-      .workspace { grid-template-columns: 1fr; gap: 14px; padding-top: 14px; }
-      .preview-panel { min-height: 420px; }
-      .panel-heading { min-height: 56px; padding: 0 16px; }
-      model-viewer { min-height: 330px; }
-      .control-panel { padding: 21px 18px 17px; }
-      .uploads-panel { padding: 18px 14px; }
-      .uploads-heading { align-items: flex-start; }
-      .uploads-toolbar { align-items: stretch; flex-direction: column; }
-      .search-box { max-width: none; }
-      #refreshFilesBtn { align-self: flex-end; }
-    }
-  </style>
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/pages.css">
+  <link rel="stylesheet" href="/static/css/responsive.css">
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
         <span class="brand-mark" aria-hidden="true">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
             <path d="m12 2.8 8.1 4.6v9.2L12 21.2l-8.1-4.6V7.4L12 2.8Z" stroke="currentColor" stroke-width="1.5"/>
@@ -141,372 +24,40 @@
         </span>
         JT Studio
       </div>
-      <span class="topbar-note">3D MODEL WORKSPACE</span>
-    </header>
-
-    <main class="workspace">
-      <section class="preview-panel" aria-labelledby="previewTitle">
-        <div class="panel-heading">
-          <h1 id="previewTitle">Model preview</h1>
-          <span id="previewBadge" class="preview-badge">Waiting for a file</span>
-        </div>
-        <div id="previewStage" class="preview-stage">
-          <div id="emptyState" class="empty-state">
-            <div class="empty-icon" aria-hidden="true">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-                <path d="m12 2.8 8.1 4.6v9.2L12 21.2l-8.1-4.6V7.4L12 2.8Z" stroke="currentColor" stroke-width="1.35"/>
-                <path d="m3.9 7.4 8.1 4.7 8.1-4.7M12 12.1v9.1" stroke="currentColor" stroke-width="1.35"/>
-              </svg>
-            </div>
-            <h2>Your preview starts here</h2>
-            <p>Select a JT file to convert it and preview the 3D model in this workspace.</p>
-          </div>
-          <model-viewer id="viewer" camera-controls auto-rotate shadow-intensity="1"
-                        alt="Converted 3D model"></model-viewer>
-        </div>
-      </section>
-
-      <aside class="control-panel" aria-labelledby="actionsTitle">
-        <p class="eyebrow">Workspace</p>
-        <h2 id="actionsTitle">File actions</h2>
-        <p class="panel-copy">Choose a JT model to preview, register it on the server, open it in JT2Go, or download the original file.</p>
-
-        <span class="field-label">JT model file</span>
-        <label for="file" class="file-picker">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v3.2A2.3 2.3 0 0 0 7.3 20h9.4a2.3 2.3 0 0 0 2.3-2.3v-3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <p class="sidebar-caption">Workspace</p>
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <button class="sidebar-nav-button" type="button" data-view="all" aria-current="page">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5.5h16v13H4zM8 9h8M8 12.5h8M8 16h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <strong>Choose a .jt file</strong>
-          <small>JT model files only</small>
-          <input id="file" type="file" accept=".jt">
-        </label>
-        <div id="selectedFile" aria-live="polite"></div>
-
-        <div class="actions">
-          <button id="registerBtn" class="action-button" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 16v3.2A1.8 1.8 0 0 0 6.8 21h10.4a1.8 1.8 0 0 0 1.8-1.8V16M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span id="registerBtnLabel">Upload to server</span>
-          </button>
-          <button id="addBtn" class="action-button" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-            Add to JT2Go
-          </button>
-          <a id="downloadBtn" class="action-button" href="#" download>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 16v3.2A1.8 1.8 0 0 0 6.8 21h10.4a1.8 1.8 0 0 0 1.8-1.8V16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Download original .jt
-          </a>
-        </div>
-
-        <div class="divider"></div>
-        <p id="status" role="status" aria-live="polite">Select a JT file to get started.</p>
-        <p id="registrationStatus" role="status" aria-live="polite"></p>
-        <div class="tip">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 3a7 7 0 0 0-4.2 12.6c.7.5 1.2 1.2 1.4 2h5.6c.2-.8.7-1.5 1.4-2A7 7 0 0 0 12 3Zm-2 17h4m-3.5-2.4h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          The download button saves the original JT file with its original name.
-        </div>
-      </aside>
-    </main>
-    <section class="uploads-panel" aria-labelledby="uploadedFilesTitle">
-      <div class="uploads-heading">
-        <div class="uploads-title-group">
-          <span class="uploads-icon" aria-hidden="true">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-              <path d="M5 4.5h14A1.5 1.5 0 0 1 20.5 6v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18V6A1.5 1.5 0 0 1 5 4.5Z" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M8 8h8M8 12h8M8 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <div>
-            <h2 id="uploadedFilesTitle">Uploaded JT files</h2>
-            <p class="uploads-subtitle">Files registered in your MySQL database</p>
-          </div>
-        </div>
-      </div>
-      <div class="uploads-toolbar">
-        <label class="search-box" for="fileSearch">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/>
-            <path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          </svg>
-          <input id="fileSearch" type="search" placeholder="Search filename, path, owner, type or ID..." autocomplete="off">
-        </label>
-        <button id="refreshFilesBtn" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M20 11a8 8 0 0 0-14.7-3L4 10m0 0V5m0 5h5m-5 3a8 8 0 0 0 14.7 3L20 14m0 0v5m0-5h-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Refresh list
+          <span>All Files</span>
+          <span id="allFilesCount" class="nav-count">0</span>
         </button>
-      </div>
-      <p id="fileListStatus" role="status" aria-live="polite">Loading uploaded files...</p>
-      <div class="file-list-scroll">
-        <table id="uploadedFilesTable">
-          <thead>
-            <tr>
-              <th scope="col">ID</th>
-              <th scope="col">Filename</th>
-              <th scope="col">Server file path</th>
-              <th scope="col">Type</th>
-              <th scope="col">Size</th>
-              <th scope="col">Uploaded</th>
-              <th scope="col">Owner</th>
-            </tr>
-          </thead>
-          <tbody id="uploadedFilesBody"></tbody>
-        </table>
-      </div>
-    </section>
+        <button class="sidebar-nav-button" type="button" data-view="mine" aria-current="false">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5.5 19a6.5 6.5 0 0 1 13 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>My Files</span>
+          <span id="myFilesCount" class="nav-count">0</span>
+        </button>
+        <button class="sidebar-nav-button" type="button" data-view="upload" aria-current="false">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 15V4m0 0L8 8m4-4 4 4M5 15.5v3A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Upload File</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">Browse your uploaded JT files or add a new model to the workspace.</div>
+    </aside>
+    <div class="app-main">
+      <header class="topbar">
+        <h1 id="pageTitle" class="page-title">All Files</h1>
+        <span class="topbar-note">3D MODEL WORKSPACE</span>
+      </header>
+      <main id="pageMount" aria-live="polite"></main>
+    </div>
   </div>
-
-  <script>
-    const API_BASE = window.location.origin;
-
-    const input = document.getElementById('file');
-    const registerBtn = document.getElementById('registerBtn');
-    const addBtn = document.getElementById('addBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const status = document.getElementById('status');
-    const registrationStatus = document.getElementById('registrationStatus');
-    const viewer = document.getElementById('viewer');
-    const previewStage = document.getElementById('previewStage');
-    const previewBadge = document.getElementById('previewBadge');
-    const selectedFile = document.getElementById('selectedFile');
-    const refreshFilesBtn = document.getElementById('refreshFilesBtn');
-    const fileSearch = document.getElementById('fileSearch');
-    const fileListStatus = document.getElementById('fileListStatus');
-    const uploadedFilesBody = document.getElementById('uploadedFilesBody');
-    let uploadedFiles = [];
-    let downloadUrl = null;
-
-    function setStatus(text, isError = false) {
-      status.textContent = text;
-      status.classList.toggle('error', isError);
-    }
-
-    function setRegistrationStatus(text, isError = false) {
-      registrationStatus.textContent = text;
-      registrationStatus.classList.toggle('error', isError);
-    }
-
-    function formatFileSize(bytes) {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
-    function formatDate(value) {
-      if (!value) return '—';
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-    }
-
-    function addFileCell(row, value, className = '') {
-      const cell = document.createElement('td');
-      if (className) cell.className = className;
-      cell.textContent = value;
-      row.appendChild(cell);
-    }
-
-    function renderUploadedFiles() {
-      const query = fileSearch.value.trim().toLocaleLowerCase();
-      const filteredFiles = uploadedFiles.filter(file => [
-        file.id,
-        file.filename,
-        file.file_location,
-        file.type,
-        file.size,
-        file.attribute_owner
-      ].some(value => String(value ?? '').toLocaleLowerCase().includes(query)));
-
-      uploadedFilesBody.replaceChildren();
-      for (const file of filteredFiles) {
-        const row = document.createElement('tr');
-        addFileCell(row, `#${file.id}`, 'file-id');
-        addFileCell(row, file.filename, 'file-name-cell');
-        addFileCell(row, file.file_location, 'file-path-cell');
-        row.lastElementChild.title = file.file_location;
-        const typeCell = document.createElement('td');
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'file-type-badge';
-        typeBadge.textContent = file.type;
-        typeCell.appendChild(typeBadge);
-        row.appendChild(typeCell);
-        addFileCell(row, formatFileSize(file.size), 'file-size-cell');
-        addFileCell(row, formatDate(file.createdat));
-        addFileCell(row, file.attribute_owner, 'file-owner-cell');
-        uploadedFilesBody.appendChild(row);
-      }
-
-      if (!uploadedFiles.length) {
-        fileListStatus.textContent = 'No JT files have been uploaded to the server yet.';
-      } else if (!filteredFiles.length) {
-        fileListStatus.textContent = `No uploaded files match "${fileSearch.value.trim()}".`;
-      } else {
-        fileListStatus.textContent = query
-          ? `Showing ${filteredFiles.length} of ${uploadedFiles.length} uploaded file(s).`
-          : `Showing ${filteredFiles.length} most recent uploaded file(s).`;
-      }
-    }
-
-    async function loadUploadedFiles() {
-      refreshFilesBtn.disabled = true;
-      fileListStatus.classList.remove('error');
-      fileListStatus.textContent = 'Loading uploaded files...';
-      try {
-        const response = await fetch(`${API_BASE}/list`, { headers: { Accept: 'application/json' } });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not load uploaded files.');
-
-        uploadedFiles = data.files;
-        renderUploadedFiles();
-      } catch (err) {
-        fileListStatus.textContent = err instanceof TypeError
-          ? `Cannot reach the backend at ${API_BASE}. Is it running?`
-          : err.message;
-        fileListStatus.classList.add('error');
-      } finally {
-        refreshFilesBtn.disabled = false;
-      }
-    }
-
-    refreshFilesBtn.addEventListener('click', loadUploadedFiles);
-    fileSearch.addEventListener('input', renderUploadedFiles);
-    loadUploadedFiles();
-
-    viewer.addEventListener('load', () => {
-      previewBadge.classList.add('ready');
-      previewBadge.textContent = 'Preview ready';
-      setStatus('Done. Drag to rotate, scroll to zoom.');
-    });
-
-    viewer.addEventListener('error', () => {
-      previewBadge.classList.remove('ready');
-      previewBadge.textContent = 'Preview unavailable';
-      setStatus('The converted model could not be displayed. Try selecting the file again.', true);
-    });
-
-    input.addEventListener('change', async () => {
-      const file = input.files[0];
-      registerBtn.style.display = 'none';
-      registerBtn.disabled = false;
-      addBtn.style.display = 'none';
-      downloadBtn.style.display = 'none';
-      selectedFile.style.display = 'none';
-      previewStage.classList.remove('has-model');
-      previewBadge.classList.remove('ready');
-      previewBadge.textContent = 'Waiting for a file';
-      setRegistrationStatus('');
-      viewer.removeAttribute('src');
-      if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
-        downloadUrl = null;
-      }
-      if (!file) return;
-
-      if (!file.name.toLowerCase().endsWith('.jt')) {
-        setStatus('Please choose a .jt file.', true);
-        input.value = '';
-        return;
-      }
-
-      // File is valid: show the Add button right away
-      registerBtn.style.display = 'inline-block';
-      addBtn.style.display = 'inline-block';
-      selectedFile.textContent = file.name;
-      selectedFile.title = file.name;
-      selectedFile.style.display = 'block';
-      downloadUrl = URL.createObjectURL(file);
-      downloadBtn.href = downloadUrl;
-      downloadBtn.download = file.name;
-      downloadBtn.style.display = 'inline-block';
-
-      setStatus('Uploading and converting... this can take a while for large files.');
-
-      const form = new FormData();
-      form.append('file', file);
-
-      try {
-        const res = await fetch(`${API_BASE}/upload`, { method: 'POST', body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Conversion failed.');
-        const modelUrl = new URL(data.url, API_BASE);
-        previewStage.classList.add('has-model');
-        previewBadge.classList.remove('ready');
-        previewBadge.textContent = 'Loading preview...';
-        viewer.src = modelUrl.href;
-      } catch (err) {
-        if (err instanceof TypeError) {
-          setStatus(`Cannot reach the backend at ${API_BASE}. Is it running?`, true);
-        } else {
-          setStatus(err.message, true);
-        }
-      }
-    });
-
-    registerBtn.addEventListener('click', async () => {
-      const file = input.files[0];
-      if (!file || registerBtn.disabled) return;
-
-      const form = new FormData();
-      form.append('file', file);
-      registerBtn.disabled = true;
-      document.getElementById('registerBtnLabel').textContent = 'Uploading to server...';
-      setRegistrationStatus('Saving the original JT file and registering its metadata...');
-
-      try {
-        const res = await fetch(`${API_BASE}/api/jt-files/upload`, {
-          method: 'POST',
-          body: form
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Could not register the JT file.');
-        setRegistrationStatus(
-          `Registered successfully: ${data.filename} (${Number(data.file_size).toLocaleString()} bytes, record #${data.id}).`
-        );
-        await loadUploadedFiles();
-      } catch (err) {
-        if (err instanceof TypeError) {
-          setRegistrationStatus(`Cannot reach the backend at ${API_BASE}. Is it running?`, true);
-        } else {
-          setRegistrationStatus(err.message, true);
-        }
-      } finally {
-        registerBtn.disabled = false;
-        document.getElementById('registerBtnLabel').textContent = 'Upload to server';
-      }
-    });
-
-    // Add button: send the chosen file to the backend, which opens a new JT2Go tab
-    addBtn.addEventListener('click', async () => {
-      const file = input.files[0];
-      if (!file) return;
-
-      const form = new FormData();
-      form.append('file', file);
-
-      addBtn.disabled = true;
-      setStatus('Opening a new JT2Go tab...');
-      try {
-        const res = await fetch(`${API_BASE}/add-to-jt2go`, { method: 'POST', body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Could not add the file.');
-        setStatus('Opened in a new JT2Go tab.');
-      } catch (err) {
-        if (err instanceof TypeError) {
-          setStatus(`Cannot reach the backend at ${API_BASE}. Is it running?`, true);
-        } else {
-          setStatus(err.message, true);
-        }
-      } finally {
-        addBtn.disabled = false;
-      }
-    });
-  </script>
+  <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

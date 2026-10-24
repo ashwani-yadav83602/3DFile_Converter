@@ -36,12 +36,41 @@ class RouteTests(unittest.TestCase):
         response.close()
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Model preview", page)
-        self.assertIn(b"Download original .jt", page)
-        self.assertIn(b"Upload to server", page)
-        self.assertIn(b'id="fileSearch"', page)
-        self.assertIn(b"Uploaded JT files", page)
-        self.assertIn(b"id=\"refreshFilesBtn\"", page)
+        self.assertIn(b">All Files<", page)
+        self.assertIn(b">My Files<", page)
+        self.assertIn(b">Upload File<", page)
+        self.assertIn(b'data-view="mine"', page)
+        self.assertIn(b'id="pageMount"', page)
+        self.assertIn(b'<script type="module" src="/static/js/app.js"></script>', page)
+        self.assertLess(len(page), 5000)
+
+    def test_split_pages_and_assets_are_served(self):
+        static_root = Path(__file__).parent.parent / "static"
+        assets = [
+            asset for asset in static_root.rglob("*")
+            if asset.is_file() and asset.name != "index.html"
+        ]
+        for asset in assets:
+            path = f"/static/{asset.relative_to(static_root).as_posix()}"
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                response.close()
+
+        upload = self.client.get("/static/pages/upload/UploadPage.html")
+        self.assertIn(b"Model preview", upload.data)
+        self.assertIn(b"Download original .jt", upload.data)
+        upload.close()
+
+        files = self.client.get("/static/pages/files/FilesPage.html")
+        self.assertIn(b'id="fileSearch"', files.data)
+        self.assertIn(b'id="uploadedFilesTitle">All Files', files.data)
+        self.assertIn(b'id="jt2goActionHeader"', files.data)
+        files.close()
+
+        viewer = self.client.get("/static/js/pages/upload/ModelViewer.js")
+        self.assertIn(b"import(MODEL_VIEWER_URL)", viewer.data)
+        viewer.close()
 
     def test_invalid_upload_returns_json(self):
         response = self.client.post(

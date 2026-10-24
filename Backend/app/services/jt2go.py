@@ -11,6 +11,23 @@ from pathlib import Path
 JT2GO_LOCK = threading.Lock()
 
 
+def open_file_in_jt2go(file_path):
+    """Open an existing JT file in a new JT2Go document tab."""
+    
+    with JT2GO_LOCK:
+        window = find_jt2go_window()
+        if window:
+            add_file_to_jt2go_window(window, file_path)
+            return True
+
+        app_id = find_jt2go_app_id()
+        if not app_id:
+            return False
+        activate_packaged_jt2go(app_id, file_path)
+        print("Starting JT2Go...")
+        return True
+
+
 def find_jt2go_app_id():
     """Find the AppUserModelID for a packaged JT2Go installation."""
     if os.name != "nt":
@@ -196,12 +213,46 @@ def _active_popup(main_window):
     return handle, process_id.value, title.value
 
 
+# def _wait_for_open_dialog(main_window, timeout=15):
+#     """Wait for JT2Go's modal Open dialog, including owned popup windows."""
+#     import ctypes
+#     from ctypes import wintypes
+#     from pywinauto import Desktop
+#     print("_wait_for_open_dialog...")
+#     user32 = ctypes.WinDLL("user32", use_last_error=True)
+#     user32.IsWindow.argtypes = (wintypes.HWND,)
+#     user32.IsWindow.restype = wintypes.BOOL
+#     user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+#     user32.IsWindowVisible.restype = wintypes.BOOL
+#     desktop = Desktop(backend="uia")
+#     deadline = time.monotonic() + timeout
+#     while time.monotonic() < deadline:
+#         popup = _active_popup(main_window)
+#         if (
+#             popup
+#             and popup[1] == main_window.process_id()
+#             and popup[2].strip().lower() == "open"
+#             and user32.IsWindow(popup[0])
+#             and user32.IsWindowVisible(popup[0])
+#         ):
+#             return desktop.window(handle=popup[0])
+
+#         for window in desktop.windows():
+#             if (
+#                 window.process_id() == main_window.process_id()
+#                 and window.element_info.class_name == "#32770"
+#                 and window.window_text().strip().lower() == "open"
+#                 and window.is_visible()
+#             ):
+#                 return window
+#         time.sleep(0.2)
+#     raise TimeoutError("JT2Go's Open file dialog did not appear.")
 def _wait_for_open_dialog(main_window, timeout=15):
     """Wait for JT2Go's modal Open dialog, including owned popup windows."""
     import ctypes
     from ctypes import wintypes
     from pywinauto import Desktop
-
+    print("_wait_for_open_dialog...")
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     user32.IsWindow.argtypes = (wintypes.HWND,)
     user32.IsWindow.restype = wintypes.BOOL
@@ -214,7 +265,7 @@ def _wait_for_open_dialog(main_window, timeout=15):
         if (
             popup
             and popup[1] == main_window.process_id()
-            and popup[2].strip().lower() == "open"
+            and popup[2].strip().lower() in ("open", "open file")
             and user32.IsWindow(popup[0])
             and user32.IsWindowVisible(popup[0])
         ):
@@ -224,86 +275,382 @@ def _wait_for_open_dialog(main_window, timeout=15):
             if (
                 window.process_id() == main_window.process_id()
                 and window.element_info.class_name == "#32770"
-                and window.window_text().strip().lower() == "open"
+                and window.window_text().strip().lower() in ("open", "open file")
                 and window.is_visible()
             ):
                 return window
+
+        # Also look for dialogs owned by the main window (not top-level)
+        try:
+            for window in desktop.windows(process=main_window.process_id(), top_level_only=False):
+                if window.window_text().strip().lower() in ("open", "open file") and window.is_visible():
+                    return window
+        except Exception:
+            pass
+
         time.sleep(0.2)
     raise TimeoutError("JT2Go's Open file dialog did not appear.")
 
-
 def _model_document_windows(main_window):
-    return {
-        child.handle: child.window_text()
-        for child in main_window.descendants(control_type="Window")
-        if child.window_text().strip().lower().endswith(".jt")
-    }
-
-
-def _wait_for_new_model_tab(main_window, file_path, existing_handles, timeout=60):
-    from comtypes import COMError
-
-    expected_title = Path(file_path).name.casefold()
-    deadline = time.monotonic() + timeout
-    last_uia_error = None
-    while time.monotonic() < deadline:
-        try:
-            tabs = _model_document_windows(main_window)
-            for handle, title in tabs.items():
-                if handle not in existing_handles and title.strip().casefold() == expected_title:
-                    return
-            last_uia_error = None
-        except COMError as error:
-            last_uia_error = error
-        time.sleep(0.2)
-
-    if last_uia_error:
-        raise TimeoutError(
-            f"JT2Go did not expose the new document tab to UI Automation: {last_uia_error}"
-        ) from last_uia_error
-    raise TimeoutError(f"JT2Go did not open {Path(file_path).name!r} in a new document tab.")
-
-
-def add_file_to_jt2go_window(window, file_path):
-    """Open a model in a new JT2Go document tab."""
     from pywinauto import Desktop
 
-    if window.is_minimized():
-        window.restore()
-    window.set_focus()
+    process_id = main_window.process_id()
+    documents = {}
+    print("_model_document_windows...")
+    for window in Desktop(backend="uia").windows():
+        try:
+            if (
+                window.process_id() != process_id
+                or window.element_info.class_name == "#32770"
+            ):
+                continue
+            title = window.window_text().strip()
+            if title.lower().endswith(".jt"):
+                documents[window.handle] = title
+            for child in window.descendants(control_type="Window"):
+                title = child.window_text().strip()
+                if title.lower().endswith(".jt"):
+                    documents[child.handle] = title
+        except Exception:
+            continue
+    return documents
+
+def _wait_for_new_model_tab(main_window, file_path, existing_tabs=None, timeout=60):
+    """Wait until JT2Go shows the requested file. Success also if it was already open."""
+    from pathlib import Path
+
+    expected_title = Path(file_path).name.casefold()
+    existing_tabs = dict(existing_tabs or {})
+    existing_handles = set(existing_tabs)
+    deadline = time.monotonic() + timeout
+    last_uia_error = None
+    print("_wait_for_new_model_tab...")
+    while time.monotonic() < deadline:
+        try:
+            for handle, title in _model_document_windows(main_window).items():
+                if (
+                    handle not in existing_handles
+                    and title.strip().casefold() == expected_title
+                ):
+                    return handle
+            last_uia_error = None
+        except Exception as error:  # UIA can fail briefly while JT2Go updates
+            last_uia_error = error
+        time.sleep(0.3)
+
+    # No new tab appeared, but the same file was already open: JT2Go switched to it.
+    for handle, title in existing_tabs.items():
+        if title.strip().casefold() == expected_title:
+            print("File was already open in JT2Go; treating as success.")
+            return handle
+
+    message = (
+        f"JT2Go did not display {Path(file_path).name!r} "
+        f"within {timeout} seconds."
+    )
+    if last_uia_error:
+        message += f" Last UI Automation error: {last_uia_error}"
+    raise TimeoutError(message)
+
+
+def _force_window_to_foreground(window, timeout=5):
+    """Restore and activate a JT2Go top-level window."""
+    import os
+    import time
+    import ctypes
+    from ctypes import wintypes
+    from pywinauto import Desktop
+
+    if os.name != "nt":
+        return False
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.GetWindowThreadProcessId.argtypes = [
+        wintypes.HWND, ctypes.POINTER(wintypes.DWORD)
+    ]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.IsWindow.argtypes = [wintypes.HWND]
+    user32.IsWindow.restype = wintypes.BOOL
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.SetForegroundWindow.restype = wintypes.BOOL
+    user32.BringWindowToTop.argtypes = [wintypes.HWND]
+    user32.BringWindowToTop.restype = wintypes.BOOL
+    user32.AttachThreadInput.argtypes = [
+        wintypes.DWORD, wintypes.DWORD, wintypes.BOOL
+    ]
+    user32.AttachThreadInput.restype = wintypes.BOOL
+    user32.SetFocus.argtypes = [wintypes.HWND]
+    user32.SetFocus.restype = wintypes.HWND
+
+    desktop = Desktop(backend="uia")
+    pid = window.process_id()
+    deadline = time.monotonic() + timeout
+
+    while time.monotonic() < deadline:
+        candidates = []
+
+        # Collect top-level windows from the JT2Go process.
+        for item in desktop.windows():
+            try:
+                if item.process_id() != pid:
+                    continue
+                if not user32.IsWindow(item.handle):
+                    continue
+                if not user32.IsWindowVisible(item.handle):
+                    continue
+
+                title = item.window_text().strip()
+                if title and title.lower() != "open":
+                    candidates.append(item)
+            except Exception:
+                continue
+
+        # Prefer the supplied window if it still exists.
+        candidates.sort(
+            key=lambda item: item.handle != window.handle
+        )
+
+        for item in candidates:
+            hwnd = wintypes.HWND(item.handle)
+
+            try:
+                # Restore a minimized window.
+                user32.ShowWindow(hwnd, 9)
+
+                # First try pywinauto's normal activation.
+                try:
+                    item.set_focus()
+                except Exception:
+                    pass
+
+                if user32.GetForegroundWindow() == hwnd:
+                    return True
+
+                # Retry with the foreground thread attached.
+                foreground = user32.GetForegroundWindow()
+                foreground_tid = (
+                    user32.GetWindowThreadProcessId(foreground, None)
+                    if foreground else 0
+                )
+                target_tid = user32.GetWindowThreadProcessId(
+                    hwnd, None
+                )
+                current_tid = kernel32.GetCurrentThreadId()
+
+                attached = []
+
+                for tid in {foreground_tid, target_tid}:
+                    if tid and tid != current_tid:
+                        if user32.AttachThreadInput(
+                            current_tid, tid, True
+                        ):
+                            attached.append(tid)
+
+                try:
+                    user32.BringWindowToTop(hwnd)
+                    user32.SetForegroundWindow(hwnd)
+
+                    try:
+                        user32.SetFocus(hwnd)
+                    except Exception:
+                        pass
+
+                    user32.SetForegroundWindow(hwnd)
+                finally:
+                    for tid in reversed(attached):
+                        user32.AttachThreadInput(
+                            current_tid, tid, False
+                        )
+
+                time.sleep(0.2)
+
+                if user32.GetForegroundWindow() == hwnd:
+                    return True
+
+            except Exception:
+                continue
+
+        time.sleep(0.2)
+
+    return False
+
+def _enter_open_dialog_path(filename, open_button, file_path):
+    """Type the filename into the native edit control and submit it."""
+    import ctypes
+    import os
+    import time
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.SendMessageW.argtypes = (
+        wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM
+    )
+    user32.SendMessageW.restype = ctypes.c_ssize_t
+    user32.PostMessageW.argtypes = (
+        wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM
+    )
+    user32.PostMessageW.restype = wintypes.BOOL
+    user32.IsWindow.argtypes = (wintypes.HWND,)
+    user32.IsWindow.restype = wintypes.BOOL
+    user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    user32.IsWindowVisible.restype = wintypes.BOOL
+
+    filename_handle = wintypes.HWND(filename.handle)
+    button_handle = wintypes.HWND(open_button.handle)
+
+    user32.SendMessageW(filename_handle, 0x00B1, 0, -1)  # EM_SETSEL
+    user32.SendMessageW(filename_handle, 0x0102, 8, 0)  # WM_CHAR: backspace
+    encoded_path = str(file_path).encode("utf-16-le")
+    for index in range(0, len(encoded_path), 2):
+        character = int.from_bytes(encoded_path[index:index + 2], "little")
+        user32.SendMessageW(filename_handle, 0x0102, character, 1)
+
+    entered = ctypes.create_unicode_buffer(32768)
+    if not user32.SendMessageW(
+        filename_handle,
+        0x000D,
+        len(entered),
+        ctypes.cast(entered, ctypes.c_void_p).value,
+    ):  # WM_GETTEXT
+        raise RuntimeError(
+            "Could not verify the filename entered in JT2Go's Open dialog."
+        )
+
+    target_path = os.path.normcase(os.path.normpath(os.path.abspath(str(file_path))))
+    actual_path = os.path.normcase(os.path.normpath(entered.value))
+    if actual_path != target_path:
+        raise RuntimeError(
+            "JT2Go's Open dialog did not accept the complete file path."
+        )
+
+    try:
+        open_button.wait("enabled", timeout=2)
+    except Exception:
+        pass  # button state is unreliable after raw WM_CHAR input; submit anyway
+
+    if not user32.PostMessageW(button_handle, 0x00F5, 0, 0):  # BM_CLICK
+        raise OSError("Could not submit the JT2Go Open dialog.")
+
+    # If the dialog is still open after a moment, press Enter in the filename box
+    time.sleep(1.5)
+    if user32.IsWindow(button_handle) and user32.IsWindowVisible(button_handle):
+        user32.PostMessageW(filename_handle, 0x0100, 0x0D, 0)  # WM_KEYDOWN, Enter
+        user32.PostMessageW(filename_handle, 0x0101, 0x0D, 0)  # WM_KEYUP, Enter
+
+def _wait_for_open_dialog_close(dialog_handle, timeout=15):
+    """Wait for JT2Go to dismiss its native Open dialog after submission."""
+    import ctypes
+    import time
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.IsWindow.argtypes = (wintypes.HWND,)
+    user32.IsWindow.restype = wintypes.BOOL
+    user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    handle = wintypes.HWND(int(dialog_handle))
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not user32.IsWindow(handle) or not user32.IsWindowVisible(handle):
+            return
+        time.sleep(0.2)
+    raise TimeoutError(
+        "JT2Go's Open dialog did not close after submitting the file."
+    )
+def add_file_to_jt2go_window(window, file_path):
+    """Open a JT file in JT2Go and bring the main window to the foreground."""
+    if window is None:
+        raise RuntimeError("JT2Go is not open (no JT2Go window found).")
+
+    import time
+    from pywinauto import Desktop
+
+    desktop = Desktop(backend="uia")
+
+    # Restore and activate JT2Go before interacting with it.
+    _force_window_to_foreground(window)
+    time.sleep(0.2)
+
+    # Close a leftover Open dialog from an earlier failed attempt.
+    try:
+        stray = _active_popup(window)
+        if (
+            stray
+            and stray[1] == window.process_id()
+            and stray[2].strip().lower() in ("open", "open file")
+        ):
+            desktop.window(handle=stray[0]).type_keys("{ESC}")
+            time.sleep(0.5)
+    except Exception:
+        pass
+
     existing_tabs = _model_document_windows(window)
 
+    # Open the file dialog.
     application_menu = window.child_window(
-        title="Application menu", control_type="Button"
+        title="Application menu",
+        control_type="Button",
     )
+
     if application_menu.exists(timeout=1):
-        application_menu.invoke()
+        try:
+            application_menu.invoke()
+        except Exception:
+            application_menu.click_input()  # fall back to a real mouse click
+
         open_item = window.child_window(
-            title_re=r"Open\.\.\..*", control_type="MenuItem", found_index=0
+            title_re=r"Open\.\..*",
+            control_type="MenuItem",
+            found_index=0,
         )
         open_item.wait("visible", timeout=5)
         open_item.click_input()
     else:
         window.menu_select("File->Open...")
 
-    dialog = _wait_for_open_dialog(window)
+    # Wait for the Open dialog and activate it.
+    found = _wait_for_open_dialog(window)
+    dialog_handle = found.handle  # read once, while the dialog still exists
+    dialog = desktop.window(handle=dialog_handle)
+    _force_window_to_foreground(dialog)
+    time.sleep(0.2)
+
+    # Locate the filename input.
     filename = dialog.child_window(auto_id="3078", control_type="Edit")
     if not filename.exists(timeout=1):
         edits = dialog.descendants(control_type="Edit")
         filename = edits[0] if edits else None
+
     if filename is None:
         raise RuntimeError("Could not find the filename field in JT2Go's Open dialog.")
 
-    filename.set_edit_text("")
-    filename.click_input()
-    filename.type_keys(str(file_path), with_spaces=True)
-    if os.path.normcase(os.path.normpath(filename.get_value())) != os.path.normcase(
-        os.path.normpath(str(file_path))
-    ):
-        raise RuntimeError("JT2Go's Open dialog did not accept the complete file path.")
     open_button = dialog.child_window(auto_id="1", control_type="Button")
     if not open_button.exists(timeout=1):
         raise RuntimeError("Could not find the Open button in JT2Go's file dialog.")
-    open_button.wait("enabled", timeout=5)
-    open_button.click_input()
-    _wait_for_new_model_tab(window, file_path, set(existing_tabs))
+
+    _enter_open_dialog_path(filename, open_button, file_path)
+    _wait_for_open_dialog_close(dialog_handle)
+
+    # Wait until the new model tab appears (or the file was already open).
+    _wait_for_new_model_tab(window, file_path, existing_tabs, timeout=60)
+
+    # Reactivate JT2Go after the model finishes loading.
+    time.sleep(0.5)
+    try:
+        window.restore()
+    except Exception:
+        pass
+
+    if not _force_window_to_foreground(window, timeout=3):
+        time.sleep(0.5)
+        if not _force_window_to_foreground(window, timeout=3):
+            print(
+                "Warning: JT2Go opened the model, but Windows did not "
+                "allow its main window to become the foreground window."
+            )

@@ -257,3 +257,41 @@ def list_jt_file_records(limit=100):
                 connection.close()
             except Exception:
                 logging.getLogger(__name__).exception("Could not close MySQL connection")
+
+
+def get_local_jt_file_path(record_id):
+    """Return the stored path for a local-user record, or None when absent."""
+    connection = None
+    cursor = None
+    try:
+        connection = _connect_to_database()
+        cursor = connection.cursor(dictionary=True)
+        table = _validated_table_name()
+        cursor.execute(
+            f"""
+            SELECT `file_location`
+            FROM {table}
+            WHERE `id` = %s AND `attribute_owner` = %s
+            """,
+            (record_id, LOCAL_OWNER),
+        )
+        row = cursor.fetchone()
+        return row["file_location"] if row else None
+    except JTFileDatabaseError:
+        raise
+    except Exception as error:
+        current_app.logger.exception("Could not load JT file path")
+        raise JTFileDatabaseError(
+            "Could not connect to MySQL or load the JT file."
+        ) from error
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                logging.getLogger(__name__).exception("Could not close MySQL cursor")
+        if connection is not None:
+            try:
+                connection.close()
+            except Exception:
+                logging.getLogger(__name__).exception("Could not close MySQL connection")
