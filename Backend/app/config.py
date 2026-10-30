@@ -15,6 +15,7 @@ if APP_ENV not in ("dev", "prod"):
 
 ENV_FILE = PROJECT_DIR / "config" / f".env.{APP_ENV}"
 load_dotenv(ENV_FILE, override=False)
+print("ENV_FILE:", ENV_FILE, "exists:", ENV_FILE.exists(), "DB_USER:", repr(os.environ.get("DB_USER")), flush=True)
 
 
 def _configured_path(variable, default):

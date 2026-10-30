@@ -12,6 +12,11 @@ import { appState } from '../../state.js';
 let filesPageInitialized = false;
 let activeView = 'all';
 let sidebar;
+const FILES_PAGE_SIZE = 10;
+
+let filesHasMore = true;
+let filesLoadingMore = false;
+let filesRequestVersion = 0;
 
 function getVisibleFiles() {
   const files = activeView === 'mine' ? getMyFiles(appState.files) : appState.files;
@@ -74,38 +79,133 @@ async function openInJT2Go(file, button) {
   }
 }
 
+// export async function refreshFiles(forceRefresh = false) {
+//   if (appState.filesRequest) {
+//     if (forceRefresh) appState.refreshQueued = true;
+//     return appState.filesRequest;
+//   }
+//   if (appState.filesLoaded && !forceRefresh) return;
+
+//   const refreshButton = getElement('refreshFilesBtn');
+//   const status = getElement('fileListStatus');
+//   refreshButton.disabled = true;
+//   setStatus(status, 'Loading uploaded files...');
+
+//   appState.filesRequest = (async () => {
+//     try {
+//       const data = await fetchUploadedFiles();
+//       appState.files = data.files;
+//       appState.filesLoaded = true;
+//       sidebar.setCounts(appState.files.length, getMyFiles(appState.files).length);
+//       renderFiles();
+//     } catch (error) {
+//       setStatus(status, getErrorMessage(error), true);
+//     } finally {
+//       refreshButton.disabled = false;
+//       appState.filesRequest = null;
+//       if (appState.refreshQueued) {
+//         appState.refreshQueued = false;
+//         refreshFiles(true);
+//       }
+//     }
+//   })();
+//   return appState.filesRequest;
+// }
+
 export async function refreshFiles(forceRefresh = false) {
   if (appState.filesRequest) {
     if (forceRefresh) appState.refreshQueued = true;
     return appState.filesRequest;
   }
+
   if (appState.filesLoaded && !forceRefresh) return;
 
   const refreshButton = getElement('refreshFilesBtn');
   const status = getElement('fileListStatus');
+
   refreshButton.disabled = true;
   setStatus(status, 'Loading uploaded files...');
 
+  const requestVersion = ++filesRequestVersion;
+
   appState.filesRequest = (async () => {
     try {
-      const data = await fetchUploadedFiles();
-      appState.files = data.files;
+      const data = await fetchUploadedFiles(FILES_PAGE_SIZE, 0);
+
+      if (requestVersion !== filesRequestVersion) return;
+
+      appState.files = data.files || [];
       appState.filesLoaded = true;
-      sidebar.setCounts(appState.files.length, getMyFiles(appState.files).length);
+      filesHasMore = Boolean(data.has_more);
+
+      sidebar.setCounts(
+        appState.files.length,
+        getMyFiles(appState.files).length
+      );
+
       renderFiles();
     } catch (error) {
-      setStatus(status, getErrorMessage(error), true);
+      if (requestVersion === filesRequestVersion) {
+        setStatus(status, getErrorMessage(error), true);
+      }
     } finally {
-      refreshButton.disabled = false;
       appState.filesRequest = null;
+      refreshButton.disabled = false;
+
       if (appState.refreshQueued) {
         appState.refreshQueued = false;
         refreshFiles(true);
       }
     }
   })();
+
   return appState.filesRequest;
 }
+
+async function loadMoreFiles() {
+  if (
+    filesLoadingMore ||
+    !filesHasMore ||
+    appState.filesRequest ||
+    !appState.filesLoaded ||
+    !filesPageInitialized
+  ) {
+    return;
+  }
+
+  filesLoadingMore = true;
+  const requestVersion = filesRequestVersion;
+
+  try {
+    const offset = appState.files.length;
+
+    const data = await fetchUploadedFiles(
+      FILES_PAGE_SIZE,
+      offset
+    );
+
+    // Ignore results from an older request after a refresh.
+    if (requestVersion !== filesRequestVersion) return;
+
+    const newFiles = data.files || [];
+
+    // Append instead of replacing existing records.
+    appState.files = [...appState.files, ...newFiles];
+    filesHasMore = Boolean(data.has_more);
+
+    sidebar.setCounts(
+      appState.files.length,
+      getMyFiles(appState.files).length
+    );
+
+    renderFiles();
+  } catch (error) {
+    console.error('Could not load more JT files:', error);
+  } finally {
+    filesLoadingMore = false;
+  }
+}
+
 
 export function initializeFilesPage(sidebarController) {
   if (filesPageInitialized) return;
@@ -131,3 +231,18 @@ export function setFilesView(view) {
     : 'Search filename, path, owner, type or ID...';
   renderFiles();
 }
+
+
+document.addEventListener('scroll', event => {
+  const container = event.target;
+
+  if (!container.matches?.('.file-list-scroll')) return;
+
+  const nearBottom =
+    container.scrollTop + container.clientHeight >=
+    container.scrollHeight - 100;
+
+  if (nearBottom) {
+    loadMoreFiles();
+  }
+}, true);

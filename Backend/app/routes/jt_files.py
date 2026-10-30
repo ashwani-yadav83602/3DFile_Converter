@@ -72,6 +72,7 @@ def upload_jt_file():
 
 @jt_files_bp.post("/<int:file_id>/open-in-jt2go")
 def open_registered_jt_file(file_id):
+    print(f"Request to open registered JT file with ID: {file_id}", flush=True)
     try:
         stored_path = get_local_jt_file_path(file_id)
     except JTFileDatabaseError:

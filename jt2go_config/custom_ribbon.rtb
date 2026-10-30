@@ -1,0 +1,13 @@
+TITLE JT Studio Extensions
+
+! 1. Define your Custom Tab Header
+TAB JTStudioCustomTab
+    TITLE "JT Studio Add-ons"
+
+    ! 2. Create the Custom Group inside that Header
+    GROUP ModelOperationsGroup
+    TITLE "3D Tools"
+    
+    ! 3. Place your custom Insert button inside the group
+    BUTTON ACTION_JTSTUDIO_INSERT
+END_TAB

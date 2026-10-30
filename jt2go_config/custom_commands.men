@@ -1,0 +1,6 @@
+VERSION 120
+
+BUTTON ACTION_JTSTUDIO_INSERT
+LABEL Insert 3D Model
+BITMAP custom_icon
+ACTIONS SYSTEM_LAUNCH "cmd.exe /c C:\Project\new\start_server.bat"

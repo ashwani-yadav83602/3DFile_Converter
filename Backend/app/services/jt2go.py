@@ -5,16 +5,33 @@ import subprocess
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
+import tempfile
+import ctypes
 
+INSERT_SHORTCUT = "^+i"   # pywinauto notation for Ctrl+Shift+I, must match step 1
+DIALOG_TITLES = ("open", "open file", "insert file", "insert")
+BUSY_FLAG = Path(tempfile.gettempdir()) / "jt2go_busy.flag"   # tells the watcher "this is my own automation"
 
 JT2GO_LOCK = threading.Lock()
 
 
-def open_file_in_jt2go(file_path):
-    """Open an existing JT file in a new JT2Go document tab."""
-    
+@contextmanager
+def jt2go_automation():
+    """Hold the in-process lock and the cross-process busy flag while driving JT2Go."""
     with JT2GO_LOCK:
+        BUSY_FLAG.write_text("1")
+        try:
+            yield
+        finally:
+            BUSY_FLAG.unlink(missing_ok=True)
+
+
+def open_file_in_jt2go(file_path):
+    """Insert a JT file into the current JT2Go session (opens JT2Go if needed)."""
+    print(f"Attempting to open JT file in JT2Go: {file_path}", flush=True)
+    with jt2go_automation():
         window = find_jt2go_window()
         if window:
             add_file_to_jt2go_window(window, file_path)
@@ -55,7 +72,7 @@ def find_jt2go_app_id():
 
 def activate_packaged_jt2go(app_id, file_path):
     """Activate the packaged JT2Go app and pass it the file to open."""
-    import ctypes
+    # import ctypes
     from ctypes import wintypes
 
     class GUID(ctypes.Structure):
@@ -247,11 +264,17 @@ def _active_popup(main_window):
 #                 return window
 #         time.sleep(0.2)
 #     raise TimeoutError("JT2Go's Open file dialog did not appear.")
+def file_dialog_title_matches(title):
+    """True for JT2Go Open / Insert File dialog titles."""
+    return (title or "").strip().lower() in DIALOG_TITLES
+
+
 def _wait_for_open_dialog(main_window, timeout=15):
-    """Wait for JT2Go's modal Open dialog, including owned popup windows."""
+    """Wait for JT2Go's modal Open or Insert File dialog."""
     import ctypes
     from ctypes import wintypes
     from pywinauto import Desktop
+
     print("_wait_for_open_dialog...")
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     user32.IsWindow.argtypes = (wintypes.HWND,)
@@ -265,7 +288,7 @@ def _wait_for_open_dialog(main_window, timeout=15):
         if (
             popup
             and popup[1] == main_window.process_id()
-            and popup[2].strip().lower() in ("open", "open file")
+            and file_dialog_title_matches(popup[2])
             and user32.IsWindow(popup[0])
             and user32.IsWindowVisible(popup[0])
         ):
@@ -275,21 +298,20 @@ def _wait_for_open_dialog(main_window, timeout=15):
             if (
                 window.process_id() == main_window.process_id()
                 and window.element_info.class_name == "#32770"
-                and window.window_text().strip().lower() in ("open", "open file")
+                and file_dialog_title_matches(window.window_text())
                 and window.is_visible()
             ):
                 return window
 
-        # Also look for dialogs owned by the main window (not top-level)
         try:
             for window in desktop.windows(process=main_window.process_id(), top_level_only=False):
-                if window.window_text().strip().lower() in ("open", "open file") and window.is_visible():
+                if file_dialog_title_matches(window.window_text()) and window.is_visible():
                     return window
         except Exception:
             pass
 
         time.sleep(0.2)
-    raise TimeoutError("JT2Go's Open file dialog did not appear.")
+    raise TimeoutError("JT2Go's Insert/Open file dialog did not appear.")
 
 def _model_document_windows(main_window):
     from pywinauto import Desktop
@@ -567,6 +589,7 @@ def _wait_for_open_dialog_close(dialog_handle, timeout=15):
     raise TimeoutError(
         "JT2Go's Open dialog did not close after submitting the file."
     )
+
 def add_file_to_jt2go_window(window, file_path):
     """Open a JT file in JT2Go and bring the main window to the foreground."""
     if window is None:
@@ -660,3 +683,175 @@ def add_file_to_jt2go_window(window, file_path):
                 )
     except Exception as error:
         print(f"Could not bring JT2Go to the foreground (file is open): {error}")
+        
+def _close_stray_dialog(window):
+    """Close an Insert/Open dialog the user left open, because it blocks everything else."""
+    from pywinauto import Desktop
+    for _ in range(3):
+        stray = _active_popup(window)
+        if not (
+            stray
+            and stray[1] == window.process_id()
+            and file_dialog_title_matches(stray[2])
+        ):
+            return
+        try:
+            dlg = Desktop(backend="uia").window(handle=stray[0])
+            cancel = dlg.child_window(title="Cancel", control_type="Button")
+            if cancel.exists(timeout=1):
+                try:
+                    cancel.invoke()
+                except Exception:
+                    cancel.click_input()
+        except Exception:
+            pass
+        time.sleep(0.4)
+
+
+# def _find_dialog_controls(dialog):
+#     """Return the filename edit and Open/Insert button on a native file dialog."""
+#     filename = dialog.child_window(auto_id="3078", control_type="Edit")
+#     if not filename.exists(timeout=1):
+#         edits = dialog.descendants(control_type="Edit")
+#         filename = edits[0] if edits else None
+
+#     open_button = dialog.child_window(auto_id="1", control_type="Button")
+#     if not open_button.exists(timeout=1):
+#         open_button = None
+#         for title in ("Open", "&Open", "Insert", "&Insert"):
+#             candidate = dialog.child_window(title=title, control_type="Button")
+#             if candidate.exists(timeout=0.5):
+#                 open_button = candidate
+#                 break
+
+#     if filename is None or open_button is None:
+#         return None, None
+#     return filename, open_button
+
+def _find_dialog_controls(dialog):
+    """Find the filename field and Open/Insert button in a native file dialog."""
+    from pywinauto import Desktop
+
+    # Reacquire a WindowSpecification using the dialog's native handle.
+    dialog_spec = Desktop(backend="uia").window(handle=dialog.handle)
+
+    filename = dialog_spec.child_window(
+        auto_id="3078",
+        control_type="Edit",
+    )
+
+    if not filename.exists(timeout=1):
+        edits = dialog_spec.descendants(control_type="Edit")
+        filename = edits[0] if edits else None
+
+    open_button = dialog_spec.child_window(
+        auto_id="1",
+        control_type="Button",
+    )
+
+    if not open_button.exists(timeout=1):
+        open_button = None
+
+        for title in ("Open", "&Open", "Insert", "&Insert"):
+            candidate = dialog_spec.child_window(
+                title=title,
+                control_type="Button",
+            )
+
+            if candidate.exists(timeout=0.5):
+                open_button = candidate
+                break
+
+    if filename is None or open_button is None:
+        return None, None
+
+    return filename, open_button
+
+
+def _open_insert_via_menu(window):
+    """Fall back to File > Insert when Ctrl+Shift+I does not open the dialog."""
+    application_menu = window.child_window(
+        title="Application menu",
+        control_type="Button",
+    )
+    if application_menu.exists(timeout=1):
+        try:
+            application_menu.invoke()
+        except Exception:
+            application_menu.click_input()
+        insert_item = window.child_window(
+            title_re=r"Insert.*",
+            control_type="MenuItem",
+            found_index=0,
+        )
+        if insert_item.exists(timeout=2):
+            try:
+                insert_item.invoke()
+            except Exception:
+                insert_item.click_input()
+            return
+
+    from pywinauto.keyboard import send_keys
+
+    send_keys("%f")
+    time.sleep(0.3)
+    send_keys("n")
+
+
+def _trigger_insert_dialog(window, timeout=15):
+    """Focus JT2Go, send Insert, and wait for the file dialog. Retry while it is busy."""
+    deadline = time.monotonic() + timeout
+    used_menu = False
+    attempt = 0
+    while time.monotonic() < deadline:
+        _force_window_to_foreground(window)
+        try:
+            window.set_focus()
+        except Exception:
+            pass
+        time.sleep(0.15)
+        try:
+            if attempt < 4:
+                window.type_keys(INSERT_SHORTCUT)
+            elif not used_menu:
+                _open_insert_via_menu(window)
+                used_menu = True
+        except Exception:
+            pass
+        remaining = max(0.4, min(2.0, deadline - time.monotonic()))
+        try:
+            return _wait_for_open_dialog(window, timeout=remaining)
+        except TimeoutError:
+            attempt += 1
+            time.sleep(0.3)
+    return _wait_for_open_dialog(window, timeout=1)
+
+
+# def add_file_to_jt2go_window(window, file_path):
+#     """Insert a JT file into the current JT2Go session (no new tab)."""
+#     if window is None:
+#         raise RuntimeError("JT2Go is not open (no JT2Go window found).")
+
+#     _force_window_to_foreground(window)
+#     time.sleep(0.05)
+#     _close_stray_dialog(window)
+
+#     dialog = _trigger_insert_dialog(window)
+#     dialog_handle = dialog.handle
+#     _force_window_to_foreground(dialog)
+#     time.sleep(0.05)
+
+#     filename, open_button = _find_dialog_controls(dialog)
+#     if filename is None or open_button is None:
+#         raise RuntimeError("Could not find the filename field or Open button.")
+
+#     _enter_open_dialog_path(filename, open_button, file_path)
+#     _wait_for_open_dialog_close(dialog_handle)
+#     time.sleep(1.0)
+
+#     try:
+#         fresh = find_jt2go_window()
+#         if fresh is not None:
+#             _force_window_to_foreground(fresh, timeout=3)
+#     except Exception as error:
+#         print(f"Could not bring JT2Go to the foreground (file inserted): {error}")

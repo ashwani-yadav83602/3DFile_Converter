@@ -1,0 +1,360 @@
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+ERROR:app:Open registered JT file in JT2Go failed
+Traceback (most recent call last):
+  File "C:\Project\new\Backend\app\routes\jt_files.py", line 95, in open_registered_jt_file
+    if not open_file_in_jt2go(file_path):
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Project\new\Backend\app\services\jt2go.py", line 20, in open_file_in_jt2go
+    add_file_to_jt2go_window(window, file_path)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\Backend\app\services\jt2go.py", line 616, in add_file_to_jt2go_window
+    open_item.wait("visible", timeout=5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\venv\Lib\site-packages\pywinauto\application.py", line 529, in wait
+    wait_until(timeout, retry_interval,
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+               lambda: self.__check_all_conditions(check_method_names, retry_interval))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\venv\Lib\site-packages\pywinauto\timings.py", line 375, in wait_until
+    raise err
+pywinauto.timings.TimeoutError: timed out
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+_model_document_windows...
+Error occurred while opening JT file in JT2Go: TimeoutError: timed out
+_model_document_windows...
+_wait_for_open_dialog...
+_wait_for_new_model_tab...
+_model_document_windows...
+Warning: JT2Go opened the model, but Windows did not allow its main window to become the foreground window.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+ERROR:app:Open registered JT file in JT2Go failed
+Traceback (most recent call last):
+  File "C:\Project\new\Backend\app\routes\jt_files.py", line 95, in open_registered_jt_file
+    if not open_file_in_jt2go(file_path):
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Project\new\Backend\app\services\jt2go.py", line 20, in open_file_in_jt2go
+    add_file_to_jt2go_window(window, file_path)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\Backend\app\services\jt2go.py", line 616, in add_file_to_jt2go_window
+    open_item.wait("visible", timeout=5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\venv\Lib\site-packages\pywinauto\application.py", line 529, in wait
+    wait_until(timeout, retry_interval,
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+               lambda: self.__check_all_conditions(check_method_names, retry_interval))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\venv\Lib\site-packages\pywinauto\timings.py", line 375, in wait_until
+    raise err
+pywinauto.timings.TimeoutError: timed out
+_model_document_windows...
+Error occurred while opening JT file in JT2Go: TimeoutError: timed out
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+_model_document_windows...
+_wait_for_open_dialog...
+_wait_for_new_model_tab...
+_model_document_windows...
+Warning: JT2Go opened the model, but Windows did not allow its main window to become the foreground window.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 3
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+ERROR:app:Add to JT2Go failed
+Traceback (most recent call last):
+  File "C:\Project\new\Backend\app\routes\jt2go.py", line 35, in add_to_jt2go
+    add_file_to_jt2go_window(window, destination)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\Backend\app\services\jt2go.py", line 616, in add_file_to_jt2go_window
+    open_item.wait("visible", timeout=5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\venv\Lib\site-packages\pywinauto\application.py", line 529, in wait
+    wait_until(timeout, retry_interval,
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+               lambda: self.__check_all_conditions(check_method_names, retry_interval))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project\new\venv\Lib\site-packages\pywinauto\timings.py", line 375, in wait_until
+    raise err
+pywinauto.timings.TimeoutError: timed out
+_model_document_windows...
+_model_document_windows...
+_wait_for_open_dialog...
+_wait_for_new_model_tab...
+_model_document_windows...
+Warning: JT2Go opened the model, but Windows did not allow its main window to become the foreground window.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+_model_document_windows...
+_wait_for_open_dialog...
+_wait_for_new_model_tab...
+_model_document_windows...
+Warning: JT2Go opened the model, but Windows did not allow its main window to become the foreground window.
+_model_document_windows...
+_wait_for_open_dialog...
+_wait_for_new_model_tab...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+_model_document_windows...
+File was already open in JT2Go; treating as success.
+Warning: JT2Go opened the model, but Windows did not allow its main window to become the foreground window.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 2
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 1
+WARNING:waitress.queue:Task queue depth is 2
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.
+--> Listing JT files
+--> Listing JT upload records
+--> Debug Querying Table: `jtweb_client`
+--> Successfully fetched 1 records.

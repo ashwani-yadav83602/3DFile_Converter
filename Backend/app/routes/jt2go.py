@@ -6,11 +6,11 @@ from flask import Blueprint, current_app, jsonify
 from werkzeug.utils import secure_filename
 
 from ..services.jt2go import (
-    JT2GO_LOCK,
     activate_packaged_jt2go,
     add_file_to_jt2go_window,
     find_jt2go_app_id,
     find_jt2go_window,
+    jt2go_automation,
 )
 from ..utils.uploads import check_upload
 
@@ -23,7 +23,7 @@ def add_to_jt2go():
     if bad:
         return bad
 
-    with JT2GO_LOCK:
+    with jt2go_automation():
         folder = current_app.config["UPLOADS_DIR"] / "jt2go" / uuid.uuid4().hex
         folder.mkdir(parents=True)
         destination = folder / secure_filename(file.filename)
@@ -44,3 +44,26 @@ def add_to_jt2go():
             return jsonify(
                 error=f"Could not add file to JT2Go: {type(error).__name__}: {error}"
             ), 500
+
+# Add this route below your existing add_to_jt2go() endpoint function block
+
+@jt2go_bp.post("/api/jtgo-insert")
+def jtgo_custom_insert():
+    try:
+        # Place your dynamic 3D model insertion or desktop invocation logic here.
+        # Example using the services you already imported:
+        # app_id = find_jt2go_app_id()
+        # window = find_jt2go_window()
+        
+        print("--> JT2Go Custom Ribbon 'Insert 3D Model' clicked!", flush=True)
+        
+        return jsonify({
+            "status": "success", 
+            "message": "Custom application logic executed successfully."
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"Failed to execute custom handler: {str(e)}"
+        }), 500
