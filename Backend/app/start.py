@@ -98,3 +98,5 @@ if __name__ == "__main__":
             f"Could not start the JT converter at {HOST}:{PORT}: {error}. "
             "Check whether another server is already using this address."
         ) from error
+
+ctrl+shift+i

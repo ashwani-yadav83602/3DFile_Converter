@@ -10,4 +10,4 @@ if not exist "venv\Scripts\python.exe" (
     exit /b 1
 )
 
-"Backend\venv\Scripts\python.exe" "Backend\app\start.py"
+"venv\Scripts\python.exe" "Backend\app\start.py"

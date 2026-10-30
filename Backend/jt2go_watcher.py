@@ -18,7 +18,7 @@ except OSError:
 BUSY_FLAG = Path(tempfile.gettempdir()) / "jt2go_busy.flag"  # set by jt2go.py during Add-button automation
 APP_TITLE = "JT Viewer"
 INSERT_TITLES = {"insert file", "insert"}   # "open" removed: your Add flow no longer uses it
-CLOSE_JT2GO_DIALOG = True
+CLOSE_JT2GO_DIALOG = True  # set to False for debugging the JT2Go dialog without closing it automatically
 
 
 def find_app_window():
@@ -32,40 +32,114 @@ def find_app_window():
     return None
 
 
+# def force_foreground(hwnd):
+#     import ctypes
+#     from ctypes import wintypes
+
+#     user32 = ctypes.WinDLL("user32", use_last_error=True)
+#     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+#     user32.GetForegroundWindow.restype = wintypes.HWND
+#     user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+#     user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+#     user32.AttachThreadInput.argtypes = (wintypes.DWORD, wintypes.DWORD, wintypes.BOOL)
+#     user32.ShowWindow.argtypes = (wintypes.HWND, ctypes.c_int)
+#     user32.SetWindowPos.argtypes = (
+#         wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+#         ctypes.c_int, ctypes.c_int, wintypes.UINT,
+#     )
+#     user32.BringWindowToTop.argtypes = (wintypes.HWND,)
+#     user32.SetForegroundWindow.argtypes = (wintypes.HWND,)
+
+#     hwnd = wintypes.HWND(hwnd)
+#     user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+
+#     foreground = user32.GetForegroundWindow()
+#     fg_tid = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+#     my_tid = kernel32.GetCurrentThreadId()
+#     attached = bool(fg_tid and fg_tid != my_tid and user32.AttachThreadInput(my_tid, fg_tid, True))
+#     try:
+#         flags = 0x0001 | 0x0002  # SWP_NOSIZE | SWP_NOMOVE
+#         user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, flags)  # topmost
+#         user32.SetWindowPos(hwnd, wintypes.HWND(-2), 0, 0, 0, 0, flags)  # normal again
+#         user32.BringWindowToTop(hwnd)
+#         user32.SetForegroundWindow(hwnd)
+#     finally:
+#         if attached:
+#             user32.AttachThreadInput(my_tid, fg_tid, False)
+
 def force_foreground(hwnd):
     import ctypes
     from ctypes import wintypes
 
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
     user32.GetForegroundWindow.restype = wintypes.HWND
-    user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+
+    user32.GetWindowThreadProcessId.argtypes = [
+        wintypes.HWND,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
     user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-    user32.AttachThreadInput.argtypes = (wintypes.DWORD, wintypes.DWORD, wintypes.BOOL)
-    user32.ShowWindow.argtypes = (wintypes.HWND, ctypes.c_int)
-    user32.SetWindowPos.argtypes = (
-        wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
-        ctypes.c_int, ctypes.c_int, wintypes.UINT,
-    )
-    user32.BringWindowToTop.argtypes = (wintypes.HWND,)
-    user32.SetForegroundWindow.argtypes = (wintypes.HWND,)
+
+    user32.AttachThreadInput.argtypes = [
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.BOOL,
+    ]
+    user32.AttachThreadInput.restype = wintypes.BOOL
+
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.SetWindowPos.argtypes = [
+        wintypes.HWND,
+        wintypes.HWND,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.UINT,
+    ]
+    user32.BringWindowToTop.argtypes = [wintypes.HWND]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+
+    kernel32.GetCurrentThreadId.restype = wintypes.DWORD
 
     hwnd = wintypes.HWND(hwnd)
-    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    user32.ShowWindow(hwnd, 9)
 
     foreground = user32.GetForegroundWindow()
-    fg_tid = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+    foreground_pid = wintypes.DWORD()
+
+    fg_tid = (
+        user32.GetWindowThreadProcessId(
+            foreground, ctypes.byref(foreground_pid)
+        )
+        if foreground
+        else 0
+    )
     my_tid = kernel32.GetCurrentThreadId()
-    attached = bool(fg_tid and fg_tid != my_tid and user32.AttachThreadInput(my_tid, fg_tid, True))
+
+    attached = False
+
+    if fg_tid and fg_tid != my_tid:
+        attached = bool(
+            user32.AttachThreadInput(my_tid, fg_tid, True)
+        )
+
     try:
-        flags = 0x0001 | 0x0002  # SWP_NOSIZE | SWP_NOMOVE
-        user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, flags)  # topmost
-        user32.SetWindowPos(hwnd, wintypes.HWND(-2), 0, 0, 0, 0, flags)  # normal again
+        flags = 0x0001 | 0x0002
+        user32.SetWindowPos(
+            hwnd, wintypes.HWND(-1), 0, 0, 0, 0, flags
+        )
+        user32.SetWindowPos(
+            hwnd, wintypes.HWND(-2), 0, 0, 0, 0, flags
+        )
         user32.BringWindowToTop(hwnd)
         user32.SetForegroundWindow(hwnd)
     finally:
         if attached:
             user32.AttachThreadInput(my_tid, fg_tid, False)
+
 APP_EXE = Path(r"C:\Project\new\Backend\dist\JTViewer\JTViewer.exe")
 
 def launch_or_focus():
