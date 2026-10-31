@@ -1,6 +1,7 @@
 import {
   fetchUploadedFiles,
-  openRegisteredFile
+  openRegisteredFile,
+  downloadRegisteredFile
 } from '../../common/services/api.js';
 import { createFileRow } from '../../common/components/DataTable.js';
 import { setStatus } from '../../common/components/StatusMessage.js';
@@ -29,7 +30,9 @@ function getVisibleFiles() {
       file.file_location,
       file.type,
       file.size,
-      file.attribute_owner
+      file.attribute_owner,
+      file.download_url
+      
     ].some(value => String(value ?? '').toLocaleLowerCase().includes(query))),
     query
   };
@@ -41,7 +44,7 @@ function renderFiles() {
   const body = getElement('uploadedFilesBody');
   const rows = document.createDocumentFragment();
   filteredFiles.forEach(file => {
-    rows.appendChild(createFileRow(file, activeView, openInJT2Go));
+    rows.appendChild(createFileRow(file, activeView, openInJT2Go, downloadFile));
   });
   body.replaceChildren(rows);
 
@@ -72,6 +75,21 @@ async function openInJT2Go(file, button) {
   try {
     await openRegisteredFile(file.id);
     setStatus(status, `${file.filename} opened in JT2Go.`);
+  } catch (error) {
+    setStatus(status, getErrorMessage(error), true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function downloadFile(file, button) {
+  alert(`Downloading ${file.filename}...`);
+  button.disabled = true;
+  const status = getElement('fileListStatus');
+  setStatus(status, `Downloading ${file.filename}...`);
+  try {
+    await downloadRegisteredFile(file.id);
+    setStatus(status, `${file.filename} downloaded.`);
   } catch (error) {
     setStatus(status, getErrorMessage(error), true);
   } finally {
@@ -230,6 +248,7 @@ export function setFilesView(view) {
     ? 'Search your files by name, path, type or ID...'
     : 'Search filename, path, owner, type or ID...';
   renderFiles();
+   
 }
 
 

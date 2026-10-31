@@ -64,3 +64,20 @@
     .jt2go-button:disabled { cursor: wait; opacity: .6; }
     #fileListStatus { min-height: 18px; margin: 0 0 10px; color: var(--muted); font-size: 11px; }
     #fileListStatus.error { color: #ff8e9b; }
+.btn-download {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-download:hover {
+  background: #1d4ed8;
+}
+
+.btn-download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

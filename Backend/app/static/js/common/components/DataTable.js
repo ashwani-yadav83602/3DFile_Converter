@@ -2,12 +2,12 @@ import { formatDate } from '../utils/dateUtils.js';
 import { formatFileSize } from '../utils/fileUtils.js';
 import { addTableCell } from '../utils/domUtils.js';
 
-export function createFileRow(file, view, onOpenInJT2Go) {
+export function createFileRow(file, view, onOpenInJT2Go, onDownloadFile) {
   const row = document.createElement('tr');
   addTableCell(row, `#${file.id}`, 'file-id');
   addTableCell(row, file.filename, 'file-name-cell');
-  const pathCell = addTableCell(row, file.file_location, 'file-path-cell');
-  pathCell.title = file.file_location;
+  // const pathCell = addTableCell(row, file.file_location, 'file-path-cell');
+  // pathCell.title = file.file_location;
 
   const typeCell = document.createElement('td');
   const typeBadge = document.createElement('span');
@@ -19,6 +19,7 @@ export function createFileRow(file, view, onOpenInJT2Go) {
   addTableCell(row, formatFileSize(file.size), 'file-size-cell');
   addTableCell(row, formatDate(file.createdat));
   addTableCell(row, file.attribute_owner, 'file-owner-cell');
+
 
   if (view === 'mine') {
     const actionCell = document.createElement('td');
@@ -32,6 +33,17 @@ export function createFileRow(file, view, onOpenInJT2Go) {
     actionCell.appendChild(openButton);
     row.appendChild(actionCell);
   }
+  const downloadButton = document.createElement('button');
+        downloadButton.type = 'button';
+        downloadButton.textContent = 'Download File';
+        downloadButton.className = 'btn btn-download';
+
+        downloadButton.addEventListener('click', () => {
+       
+          onDownloadFile(file, downloadButton);
+        });
+
+row.appendChild(downloadButton);
 
   return row;
 }

@@ -5,7 +5,7 @@ import { addTableCell } from '../utils/domUtils.js';
 export function createFileRow(file, view, onOpenInJT2Go) {
   const row = document.createElement('tr');
   addTableCell(row, `#${file.id}`, 'file-id');
-  addTableCell(row, file.filename, 'file-name-cell');
+  // addTableCell(row, file.filename, 'file-name-cell');
   const pathCell = addTableCell(row, file.file_location, 'file-path-cell');
   pathCell.title = file.file_location;
 

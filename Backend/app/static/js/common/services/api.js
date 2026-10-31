@@ -22,6 +22,34 @@ export function openRegisteredFile(fileId) {
   });
 }
 
+// export function downloadRegisteredFile(fileId) {
+//   return requestJson(`/api/jt-files/${encodeURIComponent(fileId)}/download`, {
+//     method: 'POST',
+//     headers: { Accept: 'application/json' }
+//   });
+// }
+export async function downloadRegisteredFile(fileId) {
+  const response = await fetch(`/api/jt-files/${fileId}/download`);
+
+  if (!response.ok) {
+    throw new Error('File download failed');
+  }
+
+  const blob = await response.blob();
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'downloaded-file.jt';
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
+
 export function convertJTFile(file) {
   const form = new FormData();
   form.append('file', file);

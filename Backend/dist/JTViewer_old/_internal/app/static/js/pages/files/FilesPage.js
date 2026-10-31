@@ -21,7 +21,7 @@ function getVisibleFiles() {
     filteredFiles: files.filter(file => [
       file.id,
       file.filename,
-      file.file_location,
+      // file.file_location,
       file.type,
       file.size,
       file.attribute_owner

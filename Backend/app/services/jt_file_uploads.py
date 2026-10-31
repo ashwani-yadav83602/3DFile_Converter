@@ -223,7 +223,6 @@ def list_jt_file_records(limit=100):
                 "id": row["id"],
                 "filename": row["Name"],
                 "type": row["type"],
-                "file_location": row["file_location"],
                 "size": row["size"],
                 "createdat": (
                     row["createdat"].isoformat()
